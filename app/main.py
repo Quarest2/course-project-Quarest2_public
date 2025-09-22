@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse
 
 app = FastAPI(title="SecDev Course App", version="0.1.0")
 
-
+#comment for commit
 class ApiError(Exception):
     def __init__(self, code: str, message: str, status: int = 400):
         self.code = code
