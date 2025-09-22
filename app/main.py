@@ -1,9 +1,9 @@
-from fastapi.responses import JSONResponse
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 
 app = FastAPI(title="SecDev Course App", version="0.1.0")
 
-#comment for commit
+
 class ApiError(Exception):
     def __init__(self, code: str, message: str, status: int = 400):
         self.code = code
@@ -41,9 +41,7 @@ _DB = {"items": []}
 @app.post("/items")
 def create_item(name: str):
     if not name or len(name) > 100:
-        raise ApiError(
-            code="validation_error", message="name must be 1..100 chars", status=422
-        )
+        raise ApiError(code="validation_error", message="name must be 1..100 chars", status=422)
     item = {"id": len(_DB["items"]) + 1, "name": name}
     _DB["items"].append(item)
     return item
