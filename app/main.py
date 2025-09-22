@@ -1,5 +1,5 @@
-from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
+from fastapi import FastAPI, HTTPException, Request
 
 app = FastAPI(title="SecDev Course App", version="0.1.0")
 
