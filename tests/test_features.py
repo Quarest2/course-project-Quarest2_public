@@ -1,4 +1,3 @@
-# tests/test_features.py
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -66,7 +65,7 @@ def test_get_feature_not_found():
     assert response.status_code == 404
     data = response.json()
     assert "detail" in data
-    assert "not found" in data["detail"].lower()
+    assert "not found" in data["detail"]
 
 
 def test_vote_for_feature():
@@ -101,7 +100,7 @@ def test_duplicate_vote():
     assert second_vote.status_code == 400
     data = second_vote.json()
     assert "detail" in data
-    assert "already voted" in data["detail"].lower()
+    assert "already voted" in data["detail"]
 
 
 def test_invalid_vote_value():
@@ -113,12 +112,12 @@ def test_invalid_vote_value():
     create_response = client.post("/api/v1/features", json=feature_data)
     feature_id = create_response.json()["id"]
 
-    vote_data = {"user_id": 3, "value": 5}  # Invalid value
+    vote_data = {"user_id": 3, "value": 5}
     response = client.post(f"/api/v1/features/{feature_id}/vote", json=vote_data)
     assert response.status_code == 400
     data = response.json()
     assert "detail" in data
-    assert "must be 1 or -1" in data["detail"].lower()
+    assert "must be 1 or -1" in data["detail"]
 
 
 def test_get_top_features():
