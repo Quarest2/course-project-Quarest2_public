@@ -1,8 +1,13 @@
 from datetime import datetime
 from typing import List
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
+from app.exceptions.feature_exceptions import (
+    DuplicateVoteException,
+    FeatureNotFoundException,
+    InvalidVoteValueException,
+)
 from app.models.feature import features_db, next_feature_id, next_vote_id, votes_db
 
 router = APIRouter()
@@ -29,7 +34,7 @@ def get_feature(feature_id: int):
     for feature in features_db:
         if feature.get("id") == feature_id:
             return feature
-    raise HTTPException(status_code=404, detail="Feature not found")
+    raise FeatureNotFoundException(feature_id=feature_id)
 
 
 @router.post("/features", response_model=dict)
@@ -54,6 +59,10 @@ def vote_for_feature(feature_id: int, vote_data: dict):
     """POST /features/{id}/vote - проголосовать за фичу"""
     global next_vote_id
 
+    vote_value = vote_data.get("value", 1)
+    if vote_value not in [1, -1]:
+        raise InvalidVoteValueException(value=vote_value)
+
     feature = None
     for f in features_db:
         if f.get("id") == feature_id:
@@ -61,20 +70,18 @@ def vote_for_feature(feature_id: int, vote_data: dict):
             break
 
     if not feature:
-        raise HTTPException(status_code=404, detail="Feature not found")
+        raise FeatureNotFoundException(feature_id=feature_id)
 
     user_id = vote_data.get("user_id")
     for vote in votes_db:
         if vote.get("user_id") == user_id and vote.get("feature_id") == feature_id:
-            raise HTTPException(
-                status_code=400, detail="User already voted for this feature"
-            )
+            raise DuplicateVoteException(user_id=user_id, feature_id=feature_id)
 
     new_vote = {
         "id": next_vote_id,
         "user_id": user_id,
         "feature_id": feature_id,
-        "value": vote_data.get("value", 1),
+        "value": vote_value,
         "created_at": datetime.utcnow().isoformat(),
     }
     votes_db.append(new_vote)
