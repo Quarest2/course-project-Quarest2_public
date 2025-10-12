@@ -1,0 +1,11 @@
+# Владельцы всего проекта
+* @Quarest2
+
+# Владельцы модуля Feature Votes
+/app/routers/features.py @Quarest2
+/app/models/feature.py @Quarest2
+/app/schemas/ @Quarest2
+/tests/test_features.py @Quarest2
+
+# Документация
+README.md @Quarest2
