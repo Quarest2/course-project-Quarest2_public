@@ -1,13 +1,10 @@
-"""
-Сервис мониторинга и логирования для NFR-006
-"""
 import logging
 import json
 import time
 import uuid
 from contextlib import contextmanager
 from typing import Dict, Any, Optional
-
+import os
 
 class StructuredLogger:
     """Структурированный логгер для NFR-006"""
@@ -30,15 +27,21 @@ class StructuredLogger:
             datefmt='%Y-%m-%d %H:%M:%S'
         )
 
-        # Обработчик для консоли
+        # Обработчик для консоли (работает в контейнере)
         console_handler = logging.StreamHandler()
         console_handler.setFormatter(formatter)
         self.logger.addHandler(console_handler)
 
-        # Обработчик для файла
-        file_handler = logging.FileHandler('app.log')
-        file_handler.setFormatter(formatter)
-        self.logger.addHandler(file_handler)
+        # Файловый обработчик только если есть права на запись
+        try:
+            log_dir = 'logs'
+            os.makedirs(log_dir, exist_ok=True)
+            file_handler = logging.FileHandler(f'{log_dir}/app.log')
+            file_handler.setFormatter(formatter)
+            self.logger.addHandler(file_handler)
+        except (PermissionError, OSError):
+            # Если нет прав на запись файла, используем только консоль
+            pass
 
     def _log(self, level: int, message: str, correlation_id: Optional[str] = None, **kwargs):
         """Базовый метод логирования"""
