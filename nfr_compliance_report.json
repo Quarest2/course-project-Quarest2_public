@@ -1,0 +1,9 @@
+{
+  "NFR-001 Performance": "NO_DATA - No successful requests",
+  "NFR-002 Throughput": "FAIL (0/10 requests, rate: 0.0%)",
+  "NFR-004 Security": "PASS (Missing headers: [], Server errors: 0)",
+  "NFR-005 Validation": "PASS (Tested endpoints: ['/api/v1/health', '/api/v1/features', '/api/v1/votes'])",
+  "NFR-006 Logging": "PASS (Logging service available)",
+  "NFR-007 Scalability": "PASS (Docker files: ['Dockerfile'])",
+  "NFR-008 Backup": "PASS (Backup indicators: ['backup.py'])"
+}

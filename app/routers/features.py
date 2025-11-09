@@ -1,92 +1,99 @@
-from datetime import datetime
-from typing import List
+from fastapi import APIRouter, HTTPException, Query
+from typing import List, Optional
 
-from fastapi import APIRouter
-
-from app.exceptions.feature_exceptions import (
-    DuplicateVoteException,
-    FeatureNotFoundException,
-    InvalidVoteValueException,
-)
-from app.models.feature import features_db, next_feature_id, next_vote_id, votes_db
+from app.services.monitoring import logger, track_performance
+from app.schemas.feature import Feature, VoteRequest
 
 router = APIRouter()
 
-
-@router.get("/features", response_model=List[dict])
-def get_features(skip: int = 0, limit: int = 100):
-    """GET /features - список всех фич"""
-    return features_db[skip : skip + limit]
-
-
-@router.get("/features/top", response_model=List[dict])
-def get_top_features(limit: int = 10):
-    """GET /features/top - топ фич по голосам"""
-    sorted_features = sorted(
-        features_db, key=lambda x: x.get("votes_count", 0), reverse=True
-    )
-    return sorted_features[:limit]
+# Временное хранилище данных
+votes_data = {
+    "features": [
+        {"id": 1, "name": "Dark Mode", "votes": 0},
+        {"id": 2, "name": "Mobile App", "votes": 0},
+        {"id": 3, "name": "API Access", "votes": 0}
+    ]
+}
 
 
-@router.get("/features/{feature_id}", response_model=dict)
-def get_feature(feature_id: int):
-    """GET /features/{id} - детали фичи"""
-    for feature in features_db:
-        if feature.get("id") == feature_id:
-            return feature
-    raise FeatureNotFoundException(feature_id=feature_id)
+@router.get("/features", response_model=List[Feature])
+async def get_features(
+        skip: int = Query(0, ge=0, description="Пропустить первые N записей"),
+        limit: int = Query(100, ge=1, le=1000, description="Лимит записей")
+):
+    """Получить список фич для голосования"""
+    with track_performance("get_features") as correlation_id:
+        features = votes_data["features"][skip:skip + limit]
+        logger.info("Fetching features list",
+                    correlation_id=correlation_id,
+                    feature_count=len(features),
+                    skip=skip,
+                    limit=limit)
+        return features
 
 
-@router.post("/features", response_model=dict)
-def create_feature(feature_data: dict):
-    """POST /features - создать новую фичу"""
-    global next_feature_id
+@router.get("/features/{feature_id}", response_model=Feature)
+async def get_feature(feature_id: int):
+    """Получить конкретную фичу по ID"""
+    with track_performance("get_feature") as correlation_id:
+        logger.info("Fetching specific feature",
+                    correlation_id=correlation_id,
+                    feature_id=feature_id)
 
-    new_feature = {
-        "id": next_feature_id,
-        "title": feature_data.get("title", ""),
-        "description": feature_data.get("description", ""),
-        "votes_count": 0,
-        "created_at": datetime.utcnow().isoformat(),
-    }
-    features_db.append(new_feature)
-    next_feature_id += 1
-    return new_feature
+        feature = next((f for f in votes_data["features"] if f["id"] == feature_id), None)
+        if not feature:
+            logger.warning("Feature not found",
+                           correlation_id=correlation_id,
+                           feature_id=feature_id)
+            raise HTTPException(status_code=404, detail="Feature not found")
+
+        return feature
 
 
-@router.post("/features/{feature_id}/vote", response_model=dict)
-def vote_for_feature(feature_id: int, vote_data: dict):
-    """POST /features/{id}/vote - проголосовать за фичу"""
-    global next_vote_id
+@router.post("/votes")
+async def cast_vote(vote: VoteRequest):
+    """Проголосовать за фичу"""
+    with track_performance("cast_vote") as correlation_id:
+        logger.info("Casting vote",
+                    correlation_id=correlation_id,
+                    feature_id=vote.feature_id,
+                    user_id=vote.user_id)
 
-    vote_value = vote_data.get("value", 1)
-    if vote_value not in [1, -1]:
-        raise InvalidVoteValueException(value=vote_value)
+        # Поиск фичи
+        feature = next((f for f in votes_data["features"] if f["id"] == vote.feature_id), None)
+        if not feature:
+            logger.warning("Feature not found",
+                           correlation_id=correlation_id,
+                           feature_id=vote.feature_id)
+            raise HTTPException(status_code=404, detail="Feature not found")
 
-    feature = None
-    for f in features_db:
-        if f.get("id") == feature_id:
-            feature = f
-            break
+        # Голосование
+        feature["votes"] += 1
+        logger.info("Vote cast successfully",
+                    correlation_id=correlation_id,
+                    feature_id=vote.feature_id,
+                    new_vote_count=feature["votes"],
+                    user_id=vote.user_id)
 
-    if not feature:
-        raise FeatureNotFoundException(feature_id=feature_id)
+        return {
+            "message": "Vote cast successfully",
+            "feature_id": vote.feature_id,
+            "votes": feature["votes"],
+            "correlation_id": correlation_id
+        }
 
-    user_id = vote_data.get("user_id")
-    for vote in votes_db:
-        if vote.get("user_id") == user_id and vote.get("feature_id") == feature_id:
-            raise DuplicateVoteException(user_id=user_id, feature_id=feature_id)
 
-    new_vote = {
-        "id": next_vote_id,
-        "user_id": user_id,
-        "feature_id": feature_id,
-        "value": vote_value,
-        "created_at": datetime.utcnow().isoformat(),
-    }
-    votes_db.append(new_vote)
-    next_vote_id += 1
-
-    feature["votes_count"] = feature.get("votes_count", 0) + new_vote["value"]
-
-    return new_vote
+@router.get("/votes")
+async def get_votes():
+    """Получить результаты голосования"""
+    with track_performance("get_votes") as correlation_id:
+        total_votes = sum(f["votes"] for f in votes_data["features"])
+        logger.info("Fetching vote results",
+                    correlation_id=correlation_id,
+                    total_votes=total_votes,
+                    feature_count=len(votes_data["features"]))
+        return {
+            "results": votes_data["features"],
+            "total_votes": total_votes,
+            "correlation_id": correlation_id
+        }

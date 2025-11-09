@@ -1,37 +1,34 @@
-from datetime import datetime
+from pydantic import BaseModel, Field
+from typing import Optional
 
-from pydantic import BaseModel
-
-
-class FeatureBase(BaseModel):
-    title: str
-    description: str
-
-
-class FeatureCreate(FeatureBase):
-    pass
-
-
-class FeatureResponse(FeatureBase):
-    id: int
-    votes_count: int
-    created_at: datetime
+class Feature(BaseModel):
+    id: int = Field(..., gt=0, description="ID фичи")
+    name: str = Field(..., min_length=1, max_length=100, description="Название фичи")
+    votes: int = Field(0, ge=0, description="Количество голосов")
 
     class Config:
-        orm_mode = True
+        schema_extra = {
+            "example": {
+                "id": 1,
+                "name": "Dark Mode",
+                "votes": 5
+            }
+        }
 
-
-class VoteCreate(BaseModel):
-    user_id: int
-    value: int
-
-
-class VoteResponse(BaseModel):
-    id: int
-    user_id: int
-    feature_id: int
-    value: int
-    created_at: datetime
+class VoteRequest(BaseModel):
+    feature_id: int = Field(..., gt=0, description="ID фичи для голосования")
+    user_id: Optional[str] = Field(None, description="ID пользователя")
 
     class Config:
-        orm_mode = True
+        schema_extra = {
+            "example": {
+                "feature_id": 1,
+                "user_id": "user123"
+            }
+        }
+
+class HealthResponse(BaseModel):
+    status: str
+    service: str
+    correlation_id: str
+    timestamp: str
