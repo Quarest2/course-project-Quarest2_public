@@ -37,9 +37,9 @@ def test_nfr_001_performance():
                 else:
                     status = "❌"
 
-                print(
-                    f"  Request {i + 1}: {status} {response_time:.2f}ms (Status: {response.status_code})"
-                )
+                # Исправленная строка - разбита на две
+                status_msg = f"  Request {i + 1}: {status} {response_time:.2f}ms"
+                print(f"{status_msg} (Status: {response.status_code})")
 
             except Exception as e:
                 print(f"  Request {i + 1}: 💥 ERROR - {e}")

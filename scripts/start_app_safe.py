@@ -88,7 +88,7 @@ def start_application(port=8000):
                 if stderr_output:
                     print("STDERR Output:")
                     print(stderr_output)
-            except:
+            except Exception:
                 pass
             process.terminate()
             return None

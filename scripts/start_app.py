@@ -63,7 +63,7 @@ def start_application():
                 if stderr_output:
                     print("STDERR Output:")
                     print(stderr_output)
-            except:
+            except Exception:
                 pass
             process.terminate()
             return None
@@ -116,7 +116,7 @@ if __name__ == "__main__":
             try:
                 subprocess.run(["pkill", "-f", "uvicorn"])
                 print("✅ Stopped uvicorn processes")
-            except:
+            except Exception:
                 print("❌ Failed to stop processes")
         elif sys.argv[1] == "test":
             process = start_application()

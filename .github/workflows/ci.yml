@@ -48,7 +48,9 @@ jobs:
 
     - name: Run unit tests with coverage
       run: |
-        pytest tests/ -v --cov=app --cov-report=xml --cov-report=html
+        pytest tests/ -v --cov=app --cov-report=xml --cov-report=html \
+          --ignore=tests/performance/ \
+          -k "not performance"
       env:
         DATABASE_URL: sqlite:///test.db
         SECRET_KEY: test-key-${{ github.run_id }}

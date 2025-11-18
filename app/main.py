@@ -2,7 +2,8 @@
 Основной файл приложения для тестирования NFR
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
@@ -36,8 +37,8 @@ app.add_middleware(
 @app.get("/")
 async def root():
     """Корневой эндпоинт"""
-    with track_performance("root") as correlation_id:
-        logger.info("Root endpoint called", correlation_id=correlation_id)
+    with track_performance("root"):
+        logger.info("Root endpoint called")
         return {"message": "Feature Votes API", "version": "1.0.0"}
 
 
@@ -46,12 +47,11 @@ async def health_check():
     """Health check эндпоинт для мониторинга (NFR-003)"""
     import datetime
 
-    with track_performance("health_check") as correlation_id:
-        logger.info("Health check requested", correlation_id=correlation_id)
+    with track_performance("health_check"):
+        logger.info("Health check requested")
         return {
             "status": "ok",
             "service": "feature-votes",
-            "correlation_id": correlation_id,
             "timestamp": datetime.datetime.now().isoformat(),
         }
 
@@ -59,7 +59,7 @@ async def health_check():
 # Middleware для добавления security headers (NFR-004)
 @app.middleware("http")
 async def add_security_headers(request, call_next):
-    with track_performance("security_middleware") as correlation_id:
+    with track_performance("security_middleware"):
         response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
@@ -70,15 +70,10 @@ async def add_security_headers(request, call_next):
 
 
 # Exception handlers для логирования ошибок (NFR-006)
-from fastapi import Request
-from fastapi.exceptions import HTTPException
-
-
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     logger.error(
         "HTTP Exception",
-        correlation_id=request.headers.get("x-correlation-id", "unknown"),
         path=str(request.url),
         method=request.method,
         status_code=exc.status_code,
@@ -94,7 +89,6 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 async def general_exception_handler(request: Request, exc: Exception):
     logger.error(
         "Unhandled Exception",
-        correlation_id=request.headers.get("x-correlation-id", "unknown"),
         path=str(request.url),
         method=request.method,
         error=str(exc),
