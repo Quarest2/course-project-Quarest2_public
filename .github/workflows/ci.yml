@@ -54,7 +54,7 @@ jobs:
         SECRET_KEY: test-key-${{ github.run_id }}
 
     - name: Upload coverage reports
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: coverage-report-${{ matrix.os }}-py${{ matrix.python-version }}
         path: |
@@ -74,9 +74,19 @@ jobs:
       with:
         config: p/security-audit
 
-    - name: Run secret scanning
+    - name: Install and run Gitleaks
       run: |
-        gitleaks detect --source . -v --redact
+        # Install gitleaks
+        curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.18.0/gitleaks_8.18.0_linux_x64.tar.gz | tar xz
+        ./gitleaks detect --source . -v --redact
+
+    - name: Upload security report
+      uses: actions/upload-artifact@v4
+      with:
+        name: security-reports
+        path: |
+          semgrep.sarif
+        retention-days: 7
 
   build:
     name: Build Docker Image
@@ -88,7 +98,7 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
+      uses: docker/setup-buildx-action@v3
 
     - name: Build Docker image
       run: |
@@ -99,8 +109,37 @@ jobs:
         docker save ${{ github.repository }}:latest -o image.tar
 
     - name: Upload Docker image
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: docker-image
         path: image.tar
         retention-days: 3
+
+  lint:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install linting tools
+      run: |
+        pip install black ruff isort mypy
+
+    - name: Run Black
+      run: |
+        black --check app/ tests/
+
+    - name: Run Ruff
+      run: |
+        ruff check app/ tests/
+
+    - name: Run isort
+      run: |
+        isort --check-only app/ tests/
