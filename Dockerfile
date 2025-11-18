@@ -5,10 +5,9 @@ FROM python:3.11-slim AS builder
 WORKDIR /app
 
 # Устанавливаем зависимости для сборки
-RUN apt-get update && apt-get install -y \
-    gcc \
-    python3-dev \
-    curl \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3=3.11* \
+    python3-pip=* \
     && rm -rf /var/lib/apt/lists/*
 
 # Копируем зависимости
