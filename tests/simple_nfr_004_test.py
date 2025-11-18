@@ -17,9 +17,9 @@ def test_nfr_004_security():
     response = requests.get(f"{base_url}/health")
 
     security_headers = {
-        'X-Content-Type-Options': 'nosniff',
-        'X-Frame-Options': 'DENY',
-        'Strict-Transport-Security': None,  # Должен присутствовать
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "Strict-Transport-Security": None,  # Должен присутствовать
     }
 
     missing_headers = []
@@ -38,13 +38,15 @@ def test_nfr_004_security():
     sql_payloads = [
         "1; DROP TABLE users; --",
         "' OR '1'='1",
-        "'; SELECT * FROM users; --"
+        "'; SELECT * FROM users; --",
     ]
 
     sql_vulnerabilities = 0
     for payload in sql_payloads:
         try:
-            response = requests.get(f"{base_url}/api/v1/features?search={payload}", timeout=5)
+            response = requests.get(
+                f"{base_url}/api/v1/features?search={payload}", timeout=5
+            )
             if response.status_code == 500:
                 print(f"   ❌ SQLi vulnerability: {payload}")
                 sql_vulnerabilities += 1
@@ -64,7 +66,9 @@ def test_nfr_004_security():
     validation_issues = 0
     for invalid_input in invalid_inputs:
         try:
-            response = requests.post(f"{base_url}/api/v1/votes", json=invalid_input, timeout=5)
+            response = requests.post(
+                f"{base_url}/api/v1/votes", json=invalid_input, timeout=5
+            )
             if response.status_code not in [400, 422]:  # Should be validation error
                 print(f"   ❌ Missing validation: {invalid_input}")
                 validation_issues += 1
@@ -76,9 +80,15 @@ def test_nfr_004_security():
     # Итоги
     print("\n📊 NFR-004 SECURITY RESULTS:")
     print("=" * 40)
-    print(f"Security Headers: {len(security_headers) - len(missing_headers)}/{len(security_headers)}")
-    print(f"SQL Injection Protection: {len(sql_payloads) - sql_vulnerabilities}/{len(sql_payloads)}")
-    print(f"Input Validation: {len(invalid_inputs) - validation_issues}/{len(invalid_inputs)}")
+    print(
+        f"Security Headers: {len(security_headers) - len(missing_headers)}/{len(security_headers)}"
+    )
+    print(
+        f"SQL Injection Protection: {len(sql_payloads) - sql_vulnerabilities}/{len(sql_payloads)}"
+    )
+    print(
+        f"Input Validation: {len(invalid_inputs) - validation_issues}/{len(invalid_inputs)}"
+    )
 
     if not missing_headers and sql_vulnerabilities == 0 and validation_issues == 0:
         print("✅ NFR-004: PASS - Security requirements met!")

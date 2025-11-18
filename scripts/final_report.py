@@ -15,14 +15,29 @@ def generate_final_report():
     print("=" * 70)
 
     results = [
-        ("NFR-001", "Performance", "✅ PASS", "2.15ms avg, 4.39ms p95 (≤200ms required)"),
+        (
+            "NFR-001",
+            "Performance",
+            "✅ PASS",
+            "2.15ms avg, 4.39ms p95 (≤200ms required)",
+        ),
         ("NFR-002", "Throughput", "✅ PASS", "Handles 30+ concurrent requests"),
-        ("NFR-003", "Availability", "✅ PASS", "Health checks working, 99.9% uptime ready"),
-        ("NFR-004", "Security", "✅ PASS", "Headers, SQLi protection, input validation"),
+        (
+            "NFR-003",
+            "Availability",
+            "✅ PASS",
+            "Health checks working, 99.9% uptime ready",
+        ),
+        (
+            "NFR-004",
+            "Security",
+            "✅ PASS",
+            "Headers, SQLi protection, input validation",
+        ),
         ("NFR-005", "Validation", "✅ PASS", "Pydantic schemas with error handling"),
         ("NFR-006", "Logging", "✅ PASS", "Structured JSON logs with correlation IDs"),
         ("NFR-007", "Scalability", "✅ PASS", "Docker configuration ready"),
-        ("NFR-008", "Backup", "✅ PASS", "Backup scripts implemented")
+        ("NFR-008", "Backup", "✅ PASS", "Backup scripts implemented"),
     ]
 
     for nfr_id, name, status, details in results:

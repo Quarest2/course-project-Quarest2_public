@@ -2,8 +2,9 @@
 """
 Упрощенный тест NFR-001 без проблем импорта
 """
-import time
 import statistics
+import time
+
 import requests
 
 
@@ -13,11 +14,7 @@ def test_nfr_001_performance():
     print("=" * 50)
 
     base_url = "http://localhost:8000"
-    endpoints = [
-        "/health",
-        "/api/v1/features",
-        "/api/v1/votes"
-    ]
+    endpoints = ["/health", "/api/v1/features", "/api/v1/votes"]
 
     all_response_times = []
 
@@ -40,7 +37,9 @@ def test_nfr_001_performance():
                 else:
                     status = "❌"
 
-                print(f"  Request {i + 1}: {status} {response_time:.2f}ms (Status: {response.status_code})")
+                print(
+                    f"  Request {i + 1}: {status} {response_time:.2f}ms (Status: {response.status_code})"
+                )
 
             except Exception as e:
                 print(f"  Request {i + 1}: 💥 ERROR - {e}")
@@ -48,8 +47,11 @@ def test_nfr_001_performance():
         # Анализируем результаты для эндпоинта
         if response_times:
             avg_time = statistics.mean(response_times)
-            p95_time = statistics.quantiles(response_times, n=100)[94] if len(response_times) >= 5 else max(
-                response_times)
+            p95_time = (
+                statistics.quantiles(response_times, n=100)[94]
+                if len(response_times) >= 5
+                else max(response_times)
+            )
             all_response_times.extend(response_times)
 
             print(f"  📈 {endpoint} Results:")
@@ -59,7 +61,7 @@ def test_nfr_001_performance():
 
             # Проверяем NFR-001 для этого эндпоинта
             if p95_time <= 200:
-                print(f"    - NFR-001: ✅ PASS")
+                print("    - NFR-001: ✅ PASS")
             else:
                 print(f"    - NFR-001: ❌ FAIL (>{200}ms)")
 
@@ -75,7 +77,7 @@ def test_nfr_001_performance():
         print(f"Total requests analyzed: {len(all_response_times)}")
         print(f"Average response time: {overall_avg:.2f}ms")
         print(f"95th percentile (p95): {overall_p95:.2f}ms")
-        print(f"NFR-001 Threshold: ≤ 200ms")
+        print("NFR-001 Threshold: ≤ 200ms")
 
         if overall_p95 <= 200:
             print("✅ NFR-001: PASS - Performance requirements met!")

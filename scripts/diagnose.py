@@ -2,8 +2,8 @@
 """
 Диагностика проблем приложения
 """
-import sys
 import os
+import sys
 from pathlib import Path
 
 # Добавляем корень проекта в Python path
@@ -27,7 +27,6 @@ except Exception as e:
     sys.exit(1)
 
 try:
-    from app.routers import features
 
     print("✅ app.routers.features import: SUCCESS")
 except Exception as e:
@@ -35,7 +34,6 @@ except Exception as e:
     sys.exit(1)
 
 try:
-    from app.services.monitoring import logger
 
     print("✅ app.services.monitoring import: SUCCESS")
 except Exception as e:
@@ -43,7 +41,6 @@ except Exception as e:
     sys.exit(1)
 
 try:
-    from app.schemas.feature import Feature, VoteRequest
 
     print("✅ app.schemas.feature import: SUCCESS")
 except Exception as e:

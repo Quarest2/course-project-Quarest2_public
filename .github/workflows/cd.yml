@@ -1,0 +1,55 @@
+name: CD - Staging Deployment
+
+on:
+  workflow_run:
+    workflows: ["CI - Build and Test"]
+    branches: [main]
+    types:
+      - completed
+
+jobs:
+  deploy-staging:
+    name: Deploy to Staging (Dry-run)
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        run-id: ${{ github.event.workflow_run.id }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Simulate deployment to staging
+      run: |
+        echo "🚀 Deploying to staging environment..."
+        echo "Application: ${{ vars.APP_NAME }}"
+        echo "Version: ${{ github.sha }}"
+        echo "Database: ${{ secrets.STAGING_DB_URL != '' && 'Configured' || 'Not configured' }}"
+        echo "🔐 Secrets configured: ${{ secrets.STAGING_JWT_SECRET != '' && 'Yes' || 'No' }}"
+        
+        # Mock deployment commands
+        echo "📦 Would run: docker-compose -f docker-compose.yml up -d"
+        echo "✅ Staging deployment simulation completed"
+      env:
+        STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}
+        JWT_SECRET: ${{ secrets.STAGING_JWT_SECRET }}
+
+    - name: Create deployment status
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.repos.createDeployment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            ref: context.sha,
+            auto_merge: false,
+            required_contexts: [],
+            environment: 'staging',
+            transient_environment: true,
+            description: 'Staging deployment simulation'
+          })

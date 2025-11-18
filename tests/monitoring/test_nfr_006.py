@@ -1,5 +1,6 @@
-import logging
 import json
+import logging
+
 from app.services.monitoring import logger
 
 
@@ -24,8 +25,8 @@ def test_nfr_006_structured_logging():
     assert len(log_records) > 0
     log_data = json.loads(log_records[-1])
 
-    required_fields = ['timestamp', 'level', 'message', 'correlation_id']
+    required_fields = ["timestamp", "level", "message", "correlation_id"]
     for field in required_fields:
         assert field in log_data, f"Missing field in structured log: {field}"
 
-    assert log_data['correlation_id'] == "test-123"
+    assert log_data["correlation_id"] == "test-123"

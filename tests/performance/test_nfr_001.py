@@ -1,7 +1,8 @@
-import pytest
-import time
 import statistics
+import time
+
 from fastapi.testclient import TestClient
+
 from app.main import app
 
 client = TestClient(app)
@@ -9,11 +10,7 @@ client = TestClient(app)
 
 def test_nfr_001_response_time():
     """NFR-001: 95% запросов ≤ 200ms"""
-    endpoints_to_test = [
-        "/api/v1/features",
-        "/api/v1/votes",
-        "/api/v1/health"
-    ]
+    endpoints_to_test = ["/api/v1/features", "/api/v1/votes", "/api/v1/health"]
 
     response_times = []
     for endpoint in endpoints_to_test:

@@ -3,11 +3,11 @@
 Безопасный запуск приложения с проверкой порта
 """
 import subprocess
-import time
-import requests
 import sys
-import os
+import time
 from pathlib import Path
+
+import requests
 
 # Добавляем корень проекта в Python path
 project_root = Path(__file__).parent.parent
@@ -19,13 +19,11 @@ def kill_process_on_port(port=8000):
     try:
         # Находим PID процесса на порту
         result = subprocess.run(
-            ["lsof", "-ti", f":{port}"],
-            capture_output=True,
-            text=True
+            ["lsof", "-ti", f":{port}"], capture_output=True, text=True
         )
 
         if result.stdout.strip():
-            pids = result.stdout.strip().split('\n')
+            pids = result.stdout.strip().split("\n")
             for pid in pids:
                 if pid:
                     print(f"🛑 Killing process {pid} on port {port}")
@@ -49,15 +47,22 @@ def start_application(port=8000):
 
     try:
         # Запускаем uvicorn как Python модуль
-        process = subprocess.Popen([
-            sys.executable, "-m", "uvicorn", "app.main:app",
-            "--host", "0.0.0.0",
-            "--port", str(port)
-        ],
+        process = subprocess.Popen(
+            [
+                sys.executable,
+                "-m",
+                "uvicorn",
+                "app.main:app",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                str(port),
+            ],
             cwd=project_root,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True)
+            text=True,
+        )
 
         # Даем приложению время на запуск
         print(f"⏳ Waiting for application to start on port {port}...")

@@ -13,7 +13,9 @@ def check_nfr_001_performance(self):
             response = client.get(endpoint)
             end = time.time()
 
-            print(f"Request {i + 1}: Status {response.status_code}, Time: {(end - start) * 1000:.2f}ms")
+            print(
+                f"Request {i + 1}: Status {response.status_code}, Time: {(end - start) * 1000:.2f}ms"
+            )
 
             if response.status_code == 200:
                 response_times.append((end - start) * 1000)
@@ -51,7 +53,9 @@ def check_nfr_002_throughput(self):
                     successful += 1
                     print(f"Request {i + 1}: ✅ Success")
                 else:
-                    print(f"Request {i + 1}: ❌ Failed (Status: {response.status_code})")
+                    print(
+                        f"Request {i + 1}: ❌ Failed (Status: {response.status_code})"
+                    )
             except Exception as e:
                 print(f"Request {i + 1}: 💥 Exception: {e}")
 

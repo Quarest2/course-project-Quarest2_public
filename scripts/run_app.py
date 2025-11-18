@@ -2,9 +2,10 @@
 """
 Простой скрипт для запуска приложения
 """
-import uvicorn
 import sys
 from pathlib import Path
+
+import uvicorn
 
 # Добавляем корень проекта в Python path
 project_root = Path(__file__).parent.parent
@@ -17,9 +18,5 @@ if __name__ == "__main__":
     print("⏹️  Press Ctrl+C to stop")
 
     uvicorn.run(
-        "app.main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True,
-        log_level="info"
+        "app.main:app", host="0.0.0.0", port=8000, reload=True, log_level="info"
     )

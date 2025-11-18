@@ -1,9 +1,11 @@
 """
 Тесты для проверки соответствия NFR требованиям
 """
-import pytest
+
 import time
+
 from fastapi.testclient import TestClient
+
 from app.main import app
 
 client = TestClient(app)
@@ -19,7 +21,9 @@ class TestNFRCompliance:
         end_time = time.time()
 
         response_time = (end_time - start_time) * 1000
-        assert response_time <= 200, f"NFR-001 violation: Response time {response_time}ms > 200ms"
+        assert (
+            response_time <= 200
+        ), f"NFR-001 violation: Response time {response_time}ms > 200ms"
         assert response.status_code == 200
 
     def test_nfr_005_validation(self):
@@ -36,12 +40,14 @@ class TestNFRCompliance:
         response = client.get("/api/v1/health")
 
         security_headers = [
-            'X-Content-Type-Options',
-            'X-Frame-Options',
+            "X-Content-Type-Options",
+            "X-Frame-Options",
         ]
 
         for header in security_headers:
-            assert header in response.headers, f"NFR-004: Missing security header {header}"
+            assert (
+                header in response.headers
+            ), f"NFR-004: Missing security header {header}"
 
     def test_nfr_006_structured_logging(self):
         """NFR-006: Проверка структурированного логирования"""
