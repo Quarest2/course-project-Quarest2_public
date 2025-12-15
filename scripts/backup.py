@@ -3,7 +3,6 @@
 Простой скрипт бэкапа для NFR-008
 """
 import json
-import shutil
 from datetime import datetime
 from pathlib import Path
 
@@ -20,7 +19,7 @@ def create_backup():
         "timestamp": backup_time,
         "backup_type": "manual",
         "version": "1.0.0",
-        "description": "Feature Votes API Backup"
+        "description": "Feature Votes API Backup",
     }
 
     with open(backup_dir / "backup_info.json", "w") as f:

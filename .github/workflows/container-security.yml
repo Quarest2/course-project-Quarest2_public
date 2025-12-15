@@ -1,0 +1,64 @@
+name: Container Security Scan
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker image
+      run: |
+        docker build -t feature-votes-api:local .
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: 'feature-votes-api:local'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        ignore-unfixed: true  # Игнорируем unfixed vulnerabilities
+        severity: 'CRITICAL,HIGH'  # Только критические и высокие
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+    - name: Run Hadolint Dockerfile linter
+      uses: hadolint/hadolint-action@v3.1.0
+      with:
+        dockerfile: Dockerfile
+        failure-threshold: warning  # Только error level failures
+
+    - name: Run Docker Bench Security (optional)
+      run: |
+        # Запускаем только если есть доступ к docker socket
+        if [ -S /var/run/docker.sock ]; then
+          docker run --rm --net host --pid host --userns host --cap-add audit_control \
+            -v /var/lib:/var/lib \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v /etc:/etc --label docker_bench_security \
+            docker/docker-bench-security || echo "Docker Bench completed"
+        else
+          echo "Skipping Docker Bench - no docker socket"
+        fi
+
+    - name: Display Trivy summary
+      run: |
+        if [ -f "trivy-results.sarif" ]; then
+          echo "📊 Trivy scan completed"
+          echo "Results saved to trivy-results.sarif"
+        else
+          echo "⚠️ Trivy scan may have failed"
+        fi

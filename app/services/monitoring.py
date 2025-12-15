@@ -1,12 +1,10 @@
-"""
-Сервис мониторинга и логирования для NFR-006
-"""
-import logging
 import json
+import logging
+import os
 import time
 import uuid
 from contextlib import contextmanager
-from typing import Dict, Any, Optional
+from typing import Optional
 
 
 class StructuredLogger:
@@ -18,31 +16,41 @@ class StructuredLogger:
 
         # Настройка форматера для JSON логов
         formatter = logging.Formatter(
-            json.dumps({
-                'timestamp': '%(asctime)s',
-                'level': '%(levelname)s',
-                'logger': '%(name)s',
-                'message': '%(message)s',
-                'correlation_id': '%(correlation_id)s',
-                'module': '%(module)s',
-                'function': '%(funcName)s'
-            }),
-            datefmt='%Y-%m-%d %H:%M:%S'
+            json.dumps(
+                {
+                    "timestamp": "%(asctime)s",
+                    "level": "%(levelname)s",
+                    "logger": "%(name)s",
+                    "message": "%(message)s",
+                    "correlation_id": "%(correlation_id)s",
+                    "module": "%(module)s",
+                    "function": "%(funcName)s",
+                }
+            ),
+            datefmt="%Y-%m-%d %H:%M:%S",
         )
 
-        # Обработчик для консоли
+        # Обработчик для консоли (работает в контейнере)
         console_handler = logging.StreamHandler()
         console_handler.setFormatter(formatter)
         self.logger.addHandler(console_handler)
 
-        # Обработчик для файла
-        file_handler = logging.FileHandler('app.log')
-        file_handler.setFormatter(formatter)
-        self.logger.addHandler(file_handler)
+        # Файловый обработчик только если есть права на запись
+        try:
+            log_dir = "logs"
+            os.makedirs(log_dir, exist_ok=True)
+            file_handler = logging.FileHandler(f"{log_dir}/app.log")
+            file_handler.setFormatter(formatter)
+            self.logger.addHandler(file_handler)
+        except (PermissionError, OSError):
+            # Если нет прав на запись файла, используем только консоль
+            pass
 
-    def _log(self, level: int, message: str, correlation_id: Optional[str] = None, **kwargs):
+    def _log(
+        self, level: int, message: str, correlation_id: Optional[str] = None, **kwargs
+    ):
         """Базовый метод логирования"""
-        extra = {'correlation_id': correlation_id or str(uuid.uuid4())}
+        extra = {"correlation_id": correlation_id or str(uuid.uuid4())}
         extra.update(kwargs)
         self.logger.log(level, message, extra=extra)
 
@@ -80,33 +88,41 @@ def track_performance(operation: str, correlation_id: Optional[str] = None):
     corr_id = correlation_id or str(uuid.uuid4())
 
     try:
-        logger.info(f"Starting operation: {operation}",
-                    correlation_id=corr_id,
-                    operation=operation)
+        logger.info(
+            f"Starting operation: {operation}",
+            correlation_id=corr_id,
+            operation=operation,
+        )
         yield corr_id
     except Exception as e:
-        logger.error(f"Operation failed: {operation}",
-                     correlation_id=corr_id,
-                     operation=operation,
-                     error=str(e),
-                     error_type=type(e).__name__)
+        logger.error(
+            f"Operation failed: {operation}",
+            correlation_id=corr_id,
+            operation=operation,
+            error=str(e),
+            error_type=type(e).__name__,
+        )
         raise
     finally:
         end_time = time.time()
         duration = (end_time - start_time) * 1000  # ms
 
-        logger.info(f"Operation completed: {operation}",
-                    correlation_id=corr_id,
-                    operation=operation,
-                    duration_ms=round(duration, 2))
+        logger.info(
+            f"Operation completed: {operation}",
+            correlation_id=corr_id,
+            operation=operation,
+            duration_ms=round(duration, 2),
+        )
 
         # Логируем предупреждение если операция заняла слишком много времени (NFR-001)
         if duration > 200:
-            logger.warning(f"Performance alert: {operation} took {duration:.2f}ms",
-                           correlation_id=corr_id,
-                           duration_ms=round(duration, 2),
-                           threshold_ms=200,
-                           exceeded_by=round(duration - 200, 2))
+            logger.warning(
+                f"Performance alert: {operation} took {duration:.2f}ms",
+                correlation_id=corr_id,
+                duration_ms=round(duration, 2),
+                threshold_ms=200,
+                exceeded_by=round(duration - 200, 2),
+            )
 
 
 def setup_logging():

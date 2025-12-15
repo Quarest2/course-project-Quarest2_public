@@ -3,11 +3,11 @@
 Скрипт для запуска приложения перед тестированием
 """
 import subprocess
-import time
-import requests
 import sys
-import os
+import time
 from pathlib import Path
+
+import requests
 
 # Добавляем корень проекта в Python path
 project_root = Path(__file__).parent.parent
@@ -20,16 +20,23 @@ def start_application():
 
     try:
         # Запускаем uvicorn как Python модуль
-        process = subprocess.Popen([
-            sys.executable, "-m", "uvicorn", "app.main:app",
-            "--host", "0.0.0.0",
-            "--port", "8000",
-            "--reload"
-        ],
+        process = subprocess.Popen(
+            [
+                sys.executable,
+                "-m",
+                "uvicorn",
+                "app.main:app",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "8000",
+                "--reload",
+            ],
             cwd=project_root,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True)
+            text=True,
+        )
 
         # Даем приложению время на запуск
         print("⏳ Waiting for application to start (5 seconds)...")
@@ -40,8 +47,8 @@ def start_application():
             response = requests.get("http://localhost:8000/api/v1/health", timeout=10)
             if response.status_code == 200:
                 print("✅ Application started successfully!")
-                print(f"📡 API available at: http://localhost:8000")
-                print(f"📚 Docs available at: http://localhost:8000/docs")
+                print("📡 API available at: http://localhost:8000")
+                print("📚 Docs available at: http://localhost:8000/docs")
                 return process
             else:
                 print(f"❌ Application not healthy. Status: {response.status_code}")
@@ -56,7 +63,7 @@ def start_application():
                 if stderr_output:
                     print("STDERR Output:")
                     print(stderr_output)
-            except:
+            except Exception:
                 pass
             process.terminate()
             return None
@@ -109,7 +116,7 @@ if __name__ == "__main__":
             try:
                 subprocess.run(["pkill", "-f", "uvicorn"])
                 print("✅ Stopped uvicorn processes")
-            except:
+            except Exception:
                 print("❌ Failed to stop processes")
         elif sys.argv[1] == "test":
             process = start_application()

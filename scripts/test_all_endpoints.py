@@ -2,8 +2,8 @@
 """
 Тестирование всех эндпоинтов приложения
 """
+
 import requests
-import json
 
 BASE_URL = "http://localhost:8000"
 

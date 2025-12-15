@@ -4,7 +4,6 @@
 """
 import subprocess
 import sys
-import time
 from pathlib import Path
 
 
@@ -26,15 +25,18 @@ def run_tests():
         if Path(test_module).exists():
             print(f"\n📋 Running {test_module}...")
             try:
-                result = subprocess.run([
-                    "pytest", test_module, "-v", "--tb=short"
-                ], capture_output=True, text=True, timeout=60)
+                result = subprocess.run(
+                    ["pytest", test_module, "-v", "--tb=short"],
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                )
 
                 results[test_module] = result.returncode == 0
-                print(f"✅ PASS" if result.returncode == 0 else f"❌ FAIL")
+                print("✅ PASS" if result.returncode == 0 else "❌ FAIL")
 
             except subprocess.TimeoutExpired:
-                print(f"⏰ TIMEOUT")
+                print("⏰ TIMEOUT")
                 results[test_module] = False
         else:
             print(f"📁 Missing: {test_module}")
