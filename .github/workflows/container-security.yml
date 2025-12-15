@@ -2,14 +2,24 @@ name: Container Security Scan
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, master ]
+    # Для pull requests из форков используем только pull_request_target
+    # с явным указанием прав
+  workflow_dispatch:
 
 jobs:
   security-scan:
     runs-on: ubuntu-latest
-
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    
+    # Не запускаем для PR из форков (опасно из-за прав)
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -27,11 +37,11 @@ jobs:
         image-ref: 'feature-votes-api:local'
         format: 'sarif'
         output: 'trivy-results.sarif'
-        ignore-unfixed: true  # Игнорируем unfixed vulnerabilities
-        severity: 'CRITICAL,HIGH'  # Только критические и высокие
+        ignore-unfixed: true
+        severity: 'CRITICAL,HIGH'
 
     - name: Upload Trivy scan results to GitHub Security tab
-      uses: github/codeql-action/upload-sarif@v3
+      uses: github/codeql-action/upload-sarif@v4
       with:
         sarif_file: 'trivy-results.sarif'
 
@@ -39,26 +49,34 @@ jobs:
       uses: hadolint/hadolint-action@v3.1.0
       with:
         dockerfile: Dockerfile
-        failure-threshold: warning  # Только error level failures
-
-    - name: Run Docker Bench Security (optional)
-      run: |
-        # Запускаем только если есть доступ к docker socket
-        if [ -S /var/run/docker.sock ]; then
-          docker run --rm --net host --pid host --userns host --cap-add audit_control \
-            -v /var/lib:/var/lib \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            -v /etc:/etc --label docker_bench_security \
-            docker/docker-bench-security || echo "Docker Bench completed"
-        else
-          echo "Skipping Docker Bench - no docker socket"
-        fi
+        failure-threshold: warning
 
     - name: Display Trivy summary
       run: |
         if [ -f "trivy-results.sarif" ]; then
           echo "📊 Trivy scan completed"
           echo "Results saved to trivy-results.sarif"
+          
+          # Простой анализ результатов
+          if command -v jq &> /dev/null; then
+            echo "Vulnerabilities found:"
+            jq '.runs[0].results | length' trivy-results.sarif || echo "0"
+          fi
         else
           echo "⚠️ Trivy scan may have failed"
+        fi
+
+    - name: Check for critical vulnerabilities
+      run: |
+        if [ -f "trivy-results.sarif" ]; then
+          # Проверяем, есть ли критические уязвимости
+          if command -v jq &> /dev/null; then
+            CRITICAL_COUNT=$(jq '[.runs[0].results[] | select(.level == "error")] | length' trivy-results.sarif)
+            if [ "$CRITICAL_COUNT" -gt 0 ]; then
+              echo "❌ Found $CRITICAL_COUNT critical vulnerabilities!"
+              exit 1
+            else
+              echo "✅ No critical vulnerabilities found"
+            fi
+          fi
         fi
