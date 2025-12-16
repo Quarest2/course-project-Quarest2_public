@@ -5,6 +5,7 @@ import uuid
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 
+
 class CorrelationMiddleware(BaseHTTPMiddleware):
     """Middleware to add correlation ID to requests"""
 

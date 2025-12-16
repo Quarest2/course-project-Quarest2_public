@@ -10,6 +10,7 @@ from app.main import app
 
 client = TestClient(app)
 
+
 class TestNegativeScenarios:
     """Test negative scenarios for security and robustness"""
 

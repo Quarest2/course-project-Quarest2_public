@@ -1,8 +1,11 @@
 import uuid
+
 from fastapi.testclient import TestClient
+
 from app.main import app
 
 client = TestClient(app)
+
 
 class TestRFC7807ErrorFormat:
     """Test RFC 7807 Problem Details format implementation"""
@@ -70,8 +73,8 @@ class TestRFC7807ErrorFormat:
             json={
                 "title": large_title,
                 "price_estimate": 100.0,
-                "link": "https://example.com"
-            }
+                "link": "https://example.com",
+            },
         )
 
         assert response.status_code == 422
@@ -103,8 +106,8 @@ class TestRFC7807ErrorFormat:
                 "title": "Test Feature",
                 "price_estimate": 100.0,
                 "link": "https://example.com",
-                "votes": 0
-            }
+                "votes": 0,
+            },
         )
 
         assert "X-Correlation-ID" in response.headers

@@ -1,9 +1,9 @@
-import pytest
 from fastapi.testclient import TestClient
+
 from app.main import app
-import json
 
 client = TestClient(app)
+
 
 class TestInputValidation:
     """Тесты валидации ввода"""
@@ -16,8 +16,8 @@ class TestInputValidation:
                 "title": "",
                 "link": "https://example.com",
                 "price_estimate": 100.0,
-                "votes": 0
-            }
+                "votes": 0,
+            },
         )
         assert response.status_code == 422
         error_data = response.json()
@@ -31,8 +31,8 @@ class TestInputValidation:
                 "title": "Test Feature",
                 "link": "https://example.com",
                 "price_estimate": -10.0,
-                "votes": 0
-            }
+                "votes": 0,
+            },
         )
         assert response.status_code == 422
 
@@ -44,8 +44,8 @@ class TestInputValidation:
                 "title": "Test Feature",
                 "link": "https://example.com",
                 "price_estimate": 100.0,
-                "votes": -5
-            }
+                "votes": -5,
+            },
         )
         assert response.status_code == 422
 
@@ -58,8 +58,8 @@ class TestInputValidation:
                 "title": long_title,
                 "link": "https://example.com",
                 "price_estimate": 100.0,
-                "votes": 0
-            }
+                "votes": 0,
+            },
         )
         assert response.status_code == 422
 
@@ -71,8 +71,8 @@ class TestInputValidation:
                 "title": "Test'; DROP TABLE features; --",
                 "link": "https://example.com",
                 "price_estimate": 100.0,
-                "votes": 0
-            }
+                "votes": 0,
+            },
         )
         assert response.status_code == 201
 
@@ -84,7 +84,7 @@ class TestInputValidation:
                 "title": "<script>alert('xss')</script>",
                 "link": "javascript:alert(1)",
                 "price_estimate": 100.0,
-                "votes": 0
-            }
+                "votes": 0,
+            },
         )
         assert response.status_code in [201, 422]

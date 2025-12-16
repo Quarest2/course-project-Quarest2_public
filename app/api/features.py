@@ -11,6 +11,7 @@ from app.schemas.feature import Feature, FeatureCreate, FeatureUpdate
 
 router = APIRouter(prefix="/feature", tags=["features"])
 
+
 @router.post("", response_model=Feature, status_code=201)
 def create_feature(feature: FeatureCreate, user_id: int = 1):
     """Создать новую фичу"""
@@ -35,7 +36,7 @@ def create_feature(feature: FeatureCreate, user_id: int = 1):
 
 @router.get("", response_model=List[Feature])
 def get_features(
-        price_lt: Optional[float] = Query(None, description="Фильтр по максимальной цене")
+    price_lt: Optional[float] = Query(None, description="Фильтр по максимальной цене")
 ):
     """Получить все фичи с опциональной фильтрацией по цене"""
     db = get_db()
@@ -60,11 +61,8 @@ def get_feature(feature_id: int):
             return feature
 
     from app.core.exceptions import ApiError
-    raise ApiError(
-        code="not_found",
-        message="Feature not found",
-        status=404
-    )
+
+    raise ApiError(code="not_found", message="Feature not found", status=404)
 
 
 @router.put("/{feature_id}", response_model=Feature)
@@ -80,11 +78,7 @@ def update_feature(feature_id: int, feature_update: FeatureUpdate):
             db["features"][i] = feature
             return feature
 
-    raise ApiError(
-        code="not_found",
-        message="Feature not found",
-        status=404
-    )
+    raise ApiError(code="not_found", message="Feature not found", status=404)
 
 
 @router.delete("/{feature_id}")
@@ -96,8 +90,4 @@ def delete_feature(feature_id: int):
             del db["features"][i]
             return {"message": "feature deleted successfully"}
 
-    raise ApiError(
-        code="not_found",
-        message="Feature not found",
-        status=404
-    )
+    raise ApiError(code="not_found", message="Feature not found", status=404)

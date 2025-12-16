@@ -3,15 +3,18 @@
 import html
 from typing import Any, Dict, List, Union
 
+
 def escape_html(text: str) -> str:
     """Escape HTML special characters to prevent XSS"""
     return html.escape(text, quote=True)
+
 
 def sanitize_string(value: Any) -> str:
     """Sanitize string value by escaping HTML"""
     if value is None:
         return ""
     return escape_html(str(value))
+
 
 def sanitize_dict(data: Dict[str, Any]) -> Dict[str, Any]:
     """Recursively sanitize dictionary values"""
@@ -27,6 +30,7 @@ def sanitize_dict(data: Dict[str, Any]) -> Dict[str, Any]:
             sanitized[key] = value
     return sanitized
 
+
 def sanitize_list(data: List[Any]) -> List[Any]:
     """Recursively sanitize list values"""
     sanitized = []
@@ -41,8 +45,9 @@ def sanitize_list(data: List[Any]) -> List[Any]:
             sanitized.append(item)
     return sanitized
 
+
 def sanitize_response_data(
-    data: Union[Dict, List, str, Any]
+    data: Union[Dict, List, str, Any],
 ) -> Union[Dict, List, str, Any]:
     """Sanitize response data to prevent XSS in JSON responses"""
     if isinstance(data, dict):

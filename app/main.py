@@ -27,6 +27,7 @@ app.add_exception_handler(RequestValidationError, validation_exception_handler)
 
 app.include_router(features_router)
 
+
 @app.get("/health")
 def health():
     """Health check endpoint"""

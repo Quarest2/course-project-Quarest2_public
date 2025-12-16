@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from app.core.data_masking import sanitize_error_detail
 
+
 class ProblemDetail(BaseModel):
     """RFC 7807 Problem Details model"""
 
@@ -22,6 +23,7 @@ class ProblemDetail(BaseModel):
     timestamp: str
     instance: Optional[str] = None
 
+
 class ApiError(Exception):
     """Custom API exception with RFC 7807 support"""
 
@@ -30,6 +32,7 @@ class ApiError(Exception):
         self.message = message
         self.status = status
         super().__init__(message)
+
 
 def create_problem_detail(
     error_type: str,
@@ -53,6 +56,7 @@ def create_problem_detail(
         correlation_id=correlation_id,
         timestamp=datetime.now(timezone.utc).isoformat(),
     )
+
 
 async def api_error_handler(request: Request, exc: ApiError):
     """Handle ApiError with RFC 7807 format"""
