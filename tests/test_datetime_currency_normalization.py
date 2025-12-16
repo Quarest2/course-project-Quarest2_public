@@ -8,6 +8,7 @@ import pytest
 from app.core.currency_utils import CurrencyNormalizer
 from app.core.datetime_utils import DateTimeNormalizer
 
+
 class TestDateTimeNormalization:
     """Test datetime normalization functionality"""
 
@@ -39,6 +40,7 @@ class TestDateTimeNormalization:
         """Test error handling with invalid ISO string"""
         with pytest.raises(ValueError):
             DateTimeNormalizer.parse_iso("invalid-iso-string")
+
 
 class TestCurrencyNormalization:
     """Test currency normalization functionality"""

@@ -20,6 +20,7 @@ _DB: Dict[str, Any] = {
     ],
 }
 
+
 def get_db():
     """Get in-memory database"""
     return _DB

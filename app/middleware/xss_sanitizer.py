@@ -13,6 +13,7 @@ from starlette.responses import JSONResponse
 
 from app.core.xss_protection import sanitize_response_data
 
+
 class XSSSanitizerMiddleware(BaseHTTPMiddleware):
     """Sanitize JSON responses to prevent XSS attacks"""
 

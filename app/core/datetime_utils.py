@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 from pydantic import BaseModel, validator
 
+
 class DateTimeNormalizer:
     """DateTime normalization utilities"""
 

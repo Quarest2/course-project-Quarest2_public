@@ -1,5 +1,17 @@
+# Core dependencies - минимальный набор для работы приложения
 fastapi==0.104.1
-uvicorn==0.24.0
+uvicorn[standard]==0.24.0
 pydantic==2.5.0
-requests==2.31.0
+python-dotenv==1.0.0
 python-multipart==0.0.6
+
+# Database (для продакшена с PostgreSQL)
+psycopg2-binary==2.9.9
+# ИЛИ если нужна асинхронная поддержка:
+# asyncpg==0.29.0
+# SQLAlchemy==2.0.25
+
+# Security & utilities (из вашего проекта)
+pyjwt==2.8.0  # если используется JWT
+cryptography==42.0.5  # для шифрования
+python-magic==0.4.27  # для проверки файлов (magic bytes)

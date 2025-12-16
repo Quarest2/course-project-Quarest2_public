@@ -7,6 +7,7 @@ from app.core.secrets import SecretsManager
 
 secrets_manager = SecretsManager()
 
+
 def mask_email(email: str) -> str:
     """Mask email address: u***@domain.com"""
     if "@" not in email:
@@ -18,13 +19,16 @@ def mask_email(email: str) -> str:
         masked_local = local[0] + "***"
     return f"{masked_local}@{domain}"
 
+
 def mask_password(text: str) -> str:
     """Mask password or token"""
     return "***"
 
+
 def mask_secret_value(text: str) -> str:
     """Mask secret value using SecretsManager"""
     return secrets_manager.mask_secret(text)
+
 
 def mask_credit_card(text: str) -> str:
     """Mask credit card number: ****-****-****-1234"""
@@ -34,12 +38,14 @@ def mask_credit_card(text: str) -> str:
         return "****"
     return "****-****-****-" + digits[-4:]
 
+
 def mask_phone(text: str) -> str:
     """Mask phone number: +7 *** *** 1234"""
     digits = re.sub(r"\D", "", text)
     if len(digits) < 4:
         return "***"
     return "+" + digits[0] + " *** *** " + digits[-4:]
+
 
 def mask_sensitive_data(text: str) -> str:
     """Automatically detect and mask sensitive data in text"""
@@ -68,6 +74,7 @@ def mask_sensitive_data(text: str) -> str:
     text = re.sub(cc_pattern, lambda m: mask_credit_card(m.group()), text)
 
     return text
+
 
 def sanitize_error_detail(detail: str) -> str:
     """Sanitize error detail message to prevent information leakage"""

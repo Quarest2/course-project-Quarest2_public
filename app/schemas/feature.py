@@ -5,6 +5,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+
 class FeatureBase(BaseModel):
     """Base wish model with common fields"""
 
@@ -13,10 +14,12 @@ class FeatureBase(BaseModel):
     price_estimate: Optional[float] = Field(None, ge=0)
     votes: int = Field(None, ge=0)
 
+
 class FeatureCreate(FeatureBase):
     """Schema for creating a new wish"""
 
     pass
+
 
 class FeatureUpdate(BaseModel):
     """Schema for updating a wish (all fields optional)"""
@@ -26,6 +29,7 @@ class FeatureUpdate(BaseModel):
     price_estimate: Optional[float] = Field(None, ge=0)
     votes: int = Field(None, ge=0)
 
+
 class Feature(FeatureBase):
     """Complete wish model with all fields"""
 
@@ -33,4 +37,3 @@ class Feature(FeatureBase):
     user_id: int
     created_at: datetime
     updated_at: datetime
-

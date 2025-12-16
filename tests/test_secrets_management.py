@@ -77,7 +77,9 @@ class TestSecretsManagement:
 
     def test_get_encryption_key(self):
         """Test encryption key retrieval"""
-        with patch.dict(os.environ, {"ENCRYPTION_KEY": "32_char_encryption_key_123456789012"}):
+        with patch.dict(
+            os.environ, {"ENCRYPTION_KEY": "32_char_encryption_key_123456789012"}
+        ):
             manager = SecretsManager()
             result = manager.get_encryption_key()
             assert isinstance(result, bytes)
@@ -86,9 +88,11 @@ class TestSecretsManagement:
     def test_secrets_manager_singleton(self):
         """Test that secrets_manager is a singleton instance"""
         from app.core.secrets import secrets_manager
+
         assert isinstance(secrets_manager, SecretsManager)
 
         import app.core.secrets as secrets_module
+
         assert secrets_manager is secrets_module.secrets_manager
 
     def test_mask_data_for_logs_string(self):
