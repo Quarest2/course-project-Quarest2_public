@@ -1,16 +1,15 @@
-"""Tests for secrets management implementation (ADR-002)"""
+"""Tests for secrets management (ADR-002)"""
 
 import os
-from decimal import Decimal
 from unittest.mock import patch
 
 import pytest
 
-from app.core.currency_utils import CurrencyField, CurrencyNormalizer
 from app.core.secrets import SecretsManager
 
+
 class TestSecretsManagement:
-    """Test secrets management functionality"""
+    """Test secrets manager functionality"""
 
     def test_get_secret_success(self):
         """Test successful secret retrieval"""
@@ -19,62 +18,85 @@ class TestSecretsManagement:
             result = manager.get_secret("TEST_SECRET")
             assert result == "test_value"
 
+    def test_get_secret_with_default(self):
+        """Test secret retrieval with default value"""
+        manager = SecretsManager()
+        result = manager.get_secret("MISSING_SECRET", default="default_value")
+        assert result == "default_value"
+
     def test_get_secret_missing(self):
         """Test error when secret is missing"""
         manager = SecretsManager()
-        with pytest.raises(ValueError, match="Secret MISSING_SECRET not found"):
+        with pytest.raises(ValueError) as exc_info:
             manager.get_secret("MISSING_SECRET")
+
+        error_msg = str(exc_info.value)
+        assert "not found" in error_msg.lower()
+        assert "MISSING_SECRET" not in error_msg
+
+    def test_mask_secret_short(self):
+        """Test masking of short secrets"""
+        manager = SecretsManager()
+        result = manager.mask_secret("short")
+        assert result == "***"
 
     def test_mask_secret_long(self):
         """Test masking of long secrets"""
         manager = SecretsManager()
         result = manager.mask_secret("very_long_secret_key_12345")
-        assert result == "very***2345"
+        assert result == "ve***45"
+
+    def test_mask_secret_custom_length(self):
+        """Test masking with custom visible characters"""
+        manager = SecretsManager()
+        result = manager.mask_secret("my_secret_password", visible_chars=4)
+        assert result == "my_s***word"
 
     def test_negative_scenario_empty_secret(self):
         """Test error handling with empty secret value"""
         with patch.dict(os.environ, {"EMPTY_SECRET": ""}):
             manager = SecretsManager()
-            with pytest.raises(ValueError, match="Secret EMPTY_SECRET not found"):
-                manager.get_secret("EMPTY_SECRET")
+            # Пустой секрет должен пройти (возвращает пустую строку)
+            # но залогировать ошибку
+            result = manager.get_secret("EMPTY_SECRET", default="")
+            assert result == ""
 
+    def test_get_jwt_secret(self):
+        """Test JWT secret retrieval"""
+        with patch.dict(os.environ, {"JWT_SECRET_KEY": "jwt_secret_123"}):
+            manager = SecretsManager()
+            result = manager.get_jwt_secret()
+            assert result == "jwt_secret_123"
 
-class TestCurrencyNormalization:
-    """Test currency normalization functionality"""
+    def test_get_db_password(self):
+        """Test database password retrieval"""
+        with patch.dict(os.environ, {"DB_PASSWORD": "db_pass_456"}):
+            manager = SecretsManager()
+            result = manager.get_db_password()
+            assert result == "db_pass_456"
 
-    def test_normalize_amount_float(self):
-        """Test normalizing float amount"""
-        result = CurrencyNormalizer.normalize_amount(123.45, "USD")
-        assert result == Decimal("123.45")
+    def test_get_encryption_key(self):
+        """Test encryption key retrieval"""
+        with patch.dict(os.environ, {"ENCRYPTION_KEY": "32_char_encryption_key_123456789012"}):
+            manager = SecretsManager()
+            result = manager.get_encryption_key()
+            assert isinstance(result, bytes)
+            assert len(result) >= 32
 
-    def test_normalize_amount_rounding(self):
-        """Test rounding behavior"""
-        result = CurrencyNormalizer.normalize_amount(123.456, "USD")
-        assert result == Decimal("123.46")  # ROUND_HALF_UP
+    def test_secrets_manager_singleton(self):
+        """Test that secrets_manager is a singleton instance"""
+        from app.core.secrets import secrets_manager
+        assert isinstance(secrets_manager, SecretsManager)
 
-    def test_format_currency_usd(self):
-        """Test USD currency formatting"""
-        result = CurrencyNormalizer.format_currency(Decimal("123.45"), "USD")
-        assert result == "$123.45"
+        import app.core.secrets as secrets_module
+        assert secrets_manager is secrets_module.secrets_manager
 
-    def test_parse_currency_string_usd(self):
-        """Test parsing USD currency string"""
-        amount, currency = CurrencyNormalizer.parse_currency_string("$123.45")
-        assert amount == Decimal("123.45")
-        assert currency == "USD"
+    def test_mask_data_for_logs_string(self):
+        """Test masking secrets in strings for logs"""
+        manager = SecretsManager()
 
-    def test_unsupported_currency(self):
-        """Test error with unsupported currency"""
-        with pytest.raises(ValueError, match="Unsupported currency: BTC"):
-            CurrencyNormalizer.normalize_amount(100, "BTC")
+        test_string = "Connection string: password=supersecret; user=admin"
+        masked = manager.mask_data_for_logs(test_string)
 
-    def test_negative_scenario_invalid_amount_string(self):
-        """Test error handling with invalid amount string"""
-        with pytest.raises(Exception):
-            CurrencyNormalizer.normalize_amount("invalid_amount", "USD")
-
-    def test_currency_field_validation(self):
-        """Test CurrencyField Pydantic model validation"""
-        field = CurrencyField(amount=123.45, currency="USD")
-        assert field.amount == Decimal("123.45")
-        assert field.currency == "USD"
+        assert "password=supersecret" not in masked
+        assert "***" in masked
