@@ -24,7 +24,7 @@ def create_feature(feature: FeatureCreate, user_id: int = 1):
         "title": feature.title,
         "link": feature.link,
         "price_estimate": feature.price_estimate,
-        "votes": feature.votes,
+        "votes": feature.votes or 0,
         "created_at": now,
         "updated_at": now,
     }
@@ -32,9 +32,10 @@ def create_feature(feature: FeatureCreate, user_id: int = 1):
     db["features"].append(feature_data)
     return feature_data
 
+
 @router.get("", response_model=List[Feature])
 def get_features(
-    price_lt: Optional[float] = Query(None, description="Фильтр по максимальной цене")
+        price_lt: Optional[float] = Query(None, description="Фильтр по максимальной цене")
 ):
     """Получить все фичи с опциональной фильтрацией по цене"""
     db = get_db()
@@ -49,6 +50,7 @@ def get_features(
 
     return features
 
+
 @router.get("/{feature_id}", response_model=Feature)
 def get_feature(feature_id: int):
     """Получить фичу по ID"""
@@ -56,7 +58,13 @@ def get_feature(feature_id: int):
     for feature in db["features"]:
         if feature["id"] == feature_id:
             return feature
-    raise ApiError(code="not_found", message="feature not found", status=404)
+
+    from app.core.exceptions import ApiError
+    raise ApiError(
+        code="not_found",
+        message="Feature not found",
+        status=404
+    )
 
 
 @router.put("/{feature_id}", response_model=Feature)
@@ -72,7 +80,12 @@ def update_feature(feature_id: int, feature_update: FeatureUpdate):
             db["features"][i] = feature
             return feature
 
-    raise ApiError(code="not_found", message="feature not found", status=404)
+    raise ApiError(
+        code="not_found",
+        message="Feature not found",
+        status=404
+    )
+
 
 @router.delete("/{feature_id}")
 def delete_feature(feature_id: int):
@@ -83,4 +96,8 @@ def delete_feature(feature_id: int):
             del db["features"][i]
             return {"message": "feature deleted successfully"}
 
-    raise ApiError(code="not_found", message="feature not found", status=404)
+    raise ApiError(
+        code="not_found",
+        message="Feature not found",
+        status=404
+    )
