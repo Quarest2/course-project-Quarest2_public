@@ -1,27 +1,36 @@
+"""Feature schemas"""
+
+from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel, Field
 
+class FeatureBase(BaseModel):
+    """Base wish model with common fields"""
 
-class Feature(BaseModel):
-    id: int = Field(..., gt=0, description="ID фичи")
-    name: str = Field(..., min_length=1, max_length=100, description="Название фичи")
-    votes: int = Field(0, ge=0, description="Количество голосов")
+    title: str = Field(..., min_length=1, max_length=200)
+    link: Optional[str] = Field(None, max_length=500)
+    price_estimate: Optional[float] = Field(None, ge=0)
+    votes: int = Field(None, ge=0)
 
-    class Config:
-        schema_extra = {"example": {"id": 1, "name": "Dark Mode", "votes": 5}}
+class FeatureCreate(FeatureBase):
+    """Schema for creating a new wish"""
 
+    pass
 
-class VoteRequest(BaseModel):
-    feature_id: int = Field(..., gt=0, description="ID фичи для голосования")
-    user_id: Optional[str] = Field(None, description="ID пользователя")
+class FeatureUpdate(BaseModel):
+    """Schema for updating a wish (all fields optional)"""
 
-    class Config:
-        schema_extra = {"example": {"feature_id": 1, "user_id": "user123"}}
+    title: Optional[str] = Field(None, min_length=1, max_length=200)
+    link: Optional[str] = Field(None, max_length=500)
+    price_estimate: Optional[float] = Field(None, ge=0)
+    votes: int = Field(None, ge=0)
 
+class Feature(FeatureBase):
+    """Complete wish model with all fields"""
 
-class HealthResponse(BaseModel):
-    status: str
-    service: str
-    correlation_id: str
-    timestamp: str
+    id: int
+    user_id: int
+    created_at: datetime
+    updated_at: datetime
+
