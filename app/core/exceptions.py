@@ -19,7 +19,7 @@ class ProblemDetail(BaseModel):
     status: int
     detail: str
     correlation_id: str
-    timestamp: str  # ISO string instead of datetime
+    timestamp: str
     instance: Optional[str] = None
 
 class ApiError(Exception):
