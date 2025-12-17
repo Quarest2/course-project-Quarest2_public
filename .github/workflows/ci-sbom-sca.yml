@@ -117,20 +117,53 @@ jobs:
       - name: Generate SBOM
         run: |
           mkdir -p "${EVIDENCE_DIR}"
-          syft dir:. -o json > "${EVIDENCE_DIR}/sbom.json"
-          # Add metadata
-          python3 -c "
-          import json, os
-          with open('${EVIDENCE_DIR}/sbom.json', 'r') as f:
-              data = json.load(f)
-          data['metadata']['generated_at'] = '$(date -u +%Y-%m-%dT%H:%M:%SZ)'
-          data['metadata']['commit'] = '${GITHUB_SHA}'
-          data['metadata']['workflow_run'] = '${GITHUB_RUN_ID}'
-          data['metadata']['syft_version'] = '${SYFT_VERSION}'
-          with open('${EVIDENCE_DIR}/sbom.json', 'w') as f:
-              json.dump(data, f, indent=2)
-          "
-          echo "SBOM generated with $(jq -r '.artifacts | length' ${EVIDENCE_DIR}/sbom.json) packages"
+
+          # Генерируем SBOM
+          echo "Generating SBOM with syft..."
+          syft dir:. -o json > "${EVIDENCE_DIR}/sbom_raw.json"
+
+          # Обрабатываем через Python (надежнее)
+          python3 << 'EOF'
+          import json, os, sys
+          from datetime import datetime
+
+          try:
+              input_file = os.environ['EVIDENCE_DIR'] + '/sbom_raw.json'
+              output_file = os.environ['EVIDENCE_DIR'] + '/sbom.json'
+
+              with open(input_file, 'r') as f:
+                  data = json.load(f)
+
+              # Создаем/обновляем metadata
+              if 'metadata' not in data:
+                  data['metadata'] = {}
+
+              # Добавляем наши поля
+              data['metadata'].update({
+                  'generated_at': datetime.utcnow().isoformat() + 'Z',
+                  'commit': os.environ.get('GITHUB_SHA', ''),
+                  'workflow_run': os.environ.get('GITHUB_RUN_ID', ''),
+                  'syft_version': os.environ.get('SYFT_VERSION', ''),
+                  'tool': 'syft',
+                  'source': data['metadata'].get('source', {
+                      'type': 'directory',
+                      'path': '.'
+                  })
+              })
+
+              with open(output_file, 'w') as f:
+                  json.dump(data, f, indent=2)
+
+              package_count = len(data.get('artifacts', []))
+              print(f'✅ SBOM generated with {package_count} packages')
+
+              # Удаляем временный файл
+              os.remove(input_file)
+
+          except Exception as e:
+              print(f'❌ Error processing SBOM: {e}')
+              sys.exit(1)
+          EOF
 
       - name: Upload SBOM artifact
         uses: actions/upload-artifact@v4

@@ -11,11 +11,12 @@ from __future__ import annotations
 
 import json
 import os
-import yaml
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Tuple, Optional
+from typing import Any, Dict, List, Tuple
+
+import yaml
 
 REPORT_PATH = Path("EVIDENCE/P09/sca_report.json")
 SUMMARY_PATH = Path("EVIDENCE/P09/sca_summary.md")
@@ -48,19 +49,19 @@ def severity_key(value: str) -> str:
         "medium": "MEDIUM",
         "low": "LOW",
         "negligible": "NEGLIGIBLE",
-        "unknown": "UNKNOWN"
+        "unknown": "UNKNOWN",
     }
     normalized = (value or "UNKNOWN").strip().lower()
     return severity_map.get(normalized, "UNKNOWN")
 
 
 def filter_waived_vulnerabilities(
-        matches: List[Dict[str, Any]],
-        waivers_data: Dict[str, Any]
+    matches: List[Dict[str, Any]], waivers_data: Dict[str, Any]
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     """Разделяет уязвимости на waived и non-waived"""
     active_waivers = [
-        w for w in waivers_data.get("waivers", [])
+        w
+        for w in waivers_data.get("waivers", [])
         if w.get("status", "").lower() in ["active", "approved"]
     ]
 
@@ -71,18 +72,14 @@ def filter_waived_vulnerabilities(
         vuln = match.get("vulnerability", {})
         artifact = match.get("artifact", {})
         vuln_id = vuln.get("id", "")
-        package = artifact.get("name", "")
-        version = artifact.get("version", "")
 
         is_waived = False
         for waiver in active_waivers:
             if waiver.get("vulnerability_id") == vuln_id:
                 is_waived = True
-                waived_vulns.append({
-                    "vulnerability": vuln,
-                    "artifact": artifact,
-                    "waiver": waiver
-                })
+                waived_vulns.append(
+                    {"vulnerability": vuln, "artifact": artifact, "waiver": waiver}
+                )
                 break
 
         if not is_waived:
@@ -91,7 +88,9 @@ def filter_waived_vulnerabilities(
     return non_waived_matches, waived_vulns
 
 
-def build_highlights(matches: List[Dict[str, Any]], severity_filter: List[str] = None) -> List[str]:
+def build_highlights(
+    matches: List[Dict[str, Any]], severity_filter: List[str] = None
+) -> List[str]:
     """Создаёт список важных уязвимостей"""
     if severity_filter is None:
         severity_filter = ["CRITICAL", "HIGH"]
@@ -211,7 +210,9 @@ def build_action_plan(counts: Counter, total: int, waived_count: int) -> List[st
 
     lines.append("\n### 📚 References")
     lines.append("- **Update Policy**: See `policy/waivers.yml` for SLA per severity")
-    lines.append("- **DS1 Integration**: Use this report for Dependency Security section")
+    lines.append(
+        "- **DS1 Integration**: Use this report for Dependency Security section"
+    )
     lines.append("- **Workflow**: [View full SCA workflow]")
 
     return lines
@@ -221,7 +222,9 @@ def write_summary(report: Dict[str, Any], waivers_data: Dict[str, Any]) -> None:
     """Генерирует финальный markdown отчёт"""
     matches = report.get("matches", [])
 
-    non_waived_matches, waived_vulns = filter_waived_vulnerabilities(matches, waivers_data)
+    non_waived_matches, waived_vulns = filter_waived_vulnerabilities(
+        matches, waivers_data
+    )
     waived_count = len(waived_vulns)
 
     counts = Counter()
@@ -267,9 +270,13 @@ def write_summary(report: Dict[str, Any], waivers_data: Dict[str, Any]) -> None:
             if critical_high == 0:
                 lines.append("- ✅ **Low risk**: No Critical/High severity issues")
             elif critical_high < 3:
-                lines.append(f"- ⚠️ **Medium risk**: {critical_high} Critical/High issues")
+                lines.append(
+                    f"- ⚠️ **Medium risk**: {critical_high} Critical/High issues"
+                )
             else:
-                lines.append(f"- 🚨 **High risk**: {critical_high} Critical/High issues")
+                lines.append(
+                    f"- 🚨 **High risk**: {critical_high} Critical/High issues"
+                )
 
     lines.append("")
     lines.append("## 📝 Waivers Status")
@@ -289,17 +296,19 @@ def write_summary(report: Dict[str, Any], waivers_data: Dict[str, Any]) -> None:
     lines.append("")
     lines.extend(build_action_plan(counts, total_non_waived, waived_count))
 
-    lines.extend([
-        "",
-        "---",
-        "**How to use this report:**",
-        "1. Review Critical/High findings immediately",
-        "2. Update waivers in `policy/waivers.yml` as needed",
-        "3. Reference findings in DS1 (Dependency Security) section",
-        "4. Re-run after dependency updates",
-        "",
-        "*Generated automatically by CI/CD Security Pipeline*"
-    ])
+    lines.extend(
+        [
+            "",
+            "---",
+            "**How to use this report:**",
+            "1. Review Critical/High findings immediately",
+            "2. Update waivers in `policy/waivers.yml` as needed",
+            "3. Reference findings in DS1 (Dependency Security) section",
+            "4. Re-run after dependency updates",
+            "",
+            "*Generated automatically by CI/CD Security Pipeline*",
+        ]
+    )
 
     SUMMARY_PATH.parent.mkdir(parents=True, exist_ok=True)
     SUMMARY_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
