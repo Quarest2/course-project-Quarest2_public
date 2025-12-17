@@ -4,15 +4,33 @@ on:
   push:
     branches: [ main, develop ]
     paths:
-      - "Dockerfile"
-      - "requirements*.txt"
-      - "pyproject.toml"
-      - "compose.yaml"
-      - ".github/workflows/security.yml"
-      - "scripts/generate_sca_summary.py"
+      - "**/requirements*.txt"
+      - "**/pyproject.toml"
+      - "**/poetry.lock"
+      - "**/Pipfile"
+      - "**/Dockerfile"
+      - "**/compose*.yaml"
+      - "**/package.json"
+      - "**/package-lock.json"
+      - "**/yarn.lock"
       - "policy/**"
-      - "EVIDENCE/P09/**"
+      - ".github/workflows/ci-sbom-sca.yml"
+      - "scripts/generate_sca_summary.py"
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - "**/requirements*.txt"
+      - "**/pyproject.toml"
+      - "**/poetry.lock"
+      - "**/Pipfile"
+      - "**/Dockerfile"
+      - "policy/**"
   workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual run'
+        required: false
+        default: 'Manual trigger'
 
 permissions:
   contents: read
@@ -27,8 +45,65 @@ env:
   GRYPE_VERSION: "0.76.0"
 
 jobs:
-  sbom:
+  validate-structure:
+    name: Validate project structure
     runs-on: ubuntu-latest
+    outputs:
+      has_dependencies: ${{ steps.check-deps.outputs.has_dependencies }}
+      has_policy: ${{ steps.check-policy.outputs.has_policy }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for dependency files
+        id: check-deps
+        run: |
+          DEPS_FOUND=false
+          for pattern in "requirements*.txt" "pyproject.toml" "poetry.lock" "Pipfile" "package.json" "package-lock.json" "yarn.lock"; do
+            if compgen -G "$pattern" > /dev/null; then
+              echo "Found dependency file: $pattern"
+              DEPS_FOUND=true
+            fi
+          done
+          if [ "$DEPS_FOUND" = true ]; then
+            echo "has_dependencies=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_dependencies=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check for policy files
+        id: check-policy
+        run: |
+          if [ -f "policy/waivers.yml" ]; then
+            echo "Found policy/waivers.yml"
+            echo "has_policy=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_policy=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Validate waivers YAML structure
+        if: steps.check-policy.outputs.has_policy == 'true'
+        run: |
+          python3 -c "
+          import yaml, sys
+          try:
+              with open('policy/waivers.yml', 'r') as f:
+                  data = yaml.safe_load(f)
+              # Basic validation
+              assert 'policy' in data, 'Missing policy section'
+              if 'waivers' in data:
+                  print(f'✓ Found {len(data[\"waivers\"])} waiver(s)')
+              print('✓ Waivers policy structure is valid')
+          except Exception as e:
+              print(f'✗ Invalid waivers policy: {e}')
+              sys.exit(1)
+          "
+
+  sbom:
+    name: Generate SBOM
+    runs-on: ubuntu-latest
+    needs: validate-structure
+    if: needs.validate-structure.outputs.has_dependencies == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,12 +113,25 @@ jobs:
           curl -sSfL https://github.com/anchore/syft/releases/download/v${SYFT_VERSION}/syft_${SYFT_VERSION}_linux_amd64.tar.gz \
             | sudo tar -xz -C /usr/local/bin syft
           syft version
+
       - name: Generate SBOM
         run: |
           mkdir -p "${EVIDENCE_DIR}"
           syft dir:. -o json > "${EVIDENCE_DIR}/sbom.json"
-          jq '.metadata += {"generated_at": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'", "commit": "${GITHUB_SHA}"}' \
-            "${EVIDENCE_DIR}/sbom.json" > "${EVIDENCE_DIR}/sbom.tmp" && mv "${EVIDENCE_DIR}/sbom.tmp" "${EVIDENCE_DIR}/sbom.json"
+          # Add metadata
+          python3 -c "
+          import json, os
+          with open('${EVIDENCE_DIR}/sbom.json', 'r') as f:
+              data = json.load(f)
+          data['metadata']['generated_at'] = '$(date -u +%Y-%m-%dT%H:%M:%SZ)'
+          data['metadata']['commit'] = '${GITHUB_SHA}'
+          data['metadata']['workflow_run'] = '${GITHUB_RUN_ID}'
+          data['metadata']['syft_version'] = '${SYFT_VERSION}'
+          with open('${EVIDENCE_DIR}/sbom.json', 'w') as f:
+              json.dump(data, f, indent=2)
+          "
+          echo "SBOM generated with $(jq -r '.artifacts | length' ${EVIDENCE_DIR}/sbom.json) packages"
+
       - name: Upload SBOM artifact
         uses: actions/upload-artifact@v4
         with:
@@ -51,9 +139,23 @@ jobs:
           path: ${{ env.EVIDENCE_DIR }}/sbom.json
           retention-days: 30
 
+      - name: Generate SBOM summary
+        run: |
+          echo "# SBOM Summary" > ${EVIDENCE_DIR}/sbom_summary.md
+          echo "- Generated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> ${EVIDENCE_DIR}/sbom_summary.md
+          echo "- Commit: ${GITHUB_SHA}" >> ${EVIDENCE_DIR}/sbom_summary.md
+          echo "- Packages: $(jq -r '.artifacts | length' ${EVIDENCE_DIR}/sbom.json)" >> ${EVIDENCE_DIR}/sbom_summary.md
+          echo "" >> ${EVIDENCE_DIR}/sbom_summary.md
+          echo "## Package Types" >> ${EVIDENCE_DIR}/sbom_summary.md
+          jq -r '.artifacts | group_by(.type) | map(\"- \" + .[0].type + \": \" + (length | tostring)) | .[]' ${EVIDENCE_DIR}/sbom.json >> ${EVIDENCE_DIR}/sbom_summary.md
+
   sca:
+    name: Run SCA
     runs-on: ubuntu-latest
-    needs: sbom
+    needs:
+      - validate-structure
+      - sbom
+    if: needs.validate-structure.outputs.has_dependencies == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -69,13 +171,22 @@ jobs:
           curl -sSfL https://github.com/anchore/grype/releases/download/v${GRYPE_VERSION}/grype_${GRYPE_VERSION}_linux_amd64.tar.gz \
             | sudo tar -xz -C /usr/local/bin grype
           grype version
+
+      - name: Install Python dependencies for reporting
+        run: |
+          python -m pip install --upgrade pip
+          pip install PyYAML
+
       - name: Run SCA
         run: |
           mkdir -p "${EVIDENCE_DIR}"
           grype sbom:${EVIDENCE_DIR}/sbom.json -o json > "${EVIDENCE_DIR}/sca_report.json"
-      - name: Generate summary
+          echo "SCA scan completed"
+
+      - name: Generate summary with waiver support
         run: |
           python3 scripts/generate_sca_summary.py
+
       - name: Upload reports
         uses: actions/upload-artifact@v4
         with:
@@ -83,7 +194,93 @@ jobs:
           path: |
             ${{ env.EVIDENCE_DIR }}/sca_report.json
             ${{ env.EVIDENCE_DIR }}/sca_summary.md
+            ${{ env.EVIDENCE_DIR }}/sbom_summary.md
           retention-days: 30
 
       - name: Publish summary to job log
-        run: cat ${{ env.EVIDENCE_DIR }}/sca_summary.md >> $GITHUB_STEP_SUMMARY
+        run: |
+          echo "## 📋 SCA Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f "${EVIDENCE_DIR}/sca_summary.md" ]; then
+            # Extract key metrics
+            echo "### Key Metrics" >> $GITHUB_STEP_SUMMARY
+            grep -E "^(Total vulnerabilities|After waivers|Waivers applied|Critical.*:|High.*:)" ${EVIDENCE_DIR}/sca_summary.md | head -10 >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "[View full report](#)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No SCA summary generated" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  evidence-readme:
+    name: Generate Evidence README
+    runs-on: ubuntu-latest
+    needs: [sbom, sca]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate EVIDENCE README
+        run: |
+          cat > EVIDENCE/README.md << 'EOF'
+          # Evidence Directory Structure
+          
+          This directory contains security and compliance artifacts generated by CI/CD pipelines.
+          
+          ## P09/ - Software Composition Analysis (SBOM & SCA)
+          
+          ### Files:
+          
+          1. **sbom.json** - Software Bill of Materials
+             - Generated by: Syft v${{ env.SYFT_VERSION }}
+             - Contains: All software packages and dependencies
+             - Use: Inventory management, license compliance
+          
+          2. **sca_report.json** - Security Vulnerability Report
+             - Generated by: Grype v${{ env.GRYPE_VERSION }}
+             - Contains: Found vulnerabilities with severity and fix information
+             - Use: Vulnerability assessment, risk prioritization
+          
+          3. **sca_summary.md** - Executive Summary
+             - Generated by: scripts/generate_sca_summary.py
+             - Contains: Human-readable summary with action plan
+             - Use: Team communication, decision making
+          
+          4. **sbom_summary.md** - SBOM Overview
+             - Contains: Statistics and package counts
+          
+          ### Usage in DS1 (Dependency Security Section):
+          
+          1. **Reference SBOM** for complete dependency inventory
+          2. **Analyze sca_report.json** for vulnerability data
+          3. **Use sca_summary.md** for executive reporting
+          4. **Track waivers** in `policy/waivers.yml`
+          5. **Link to workflow runs** for audit trail
+          
+          ### Update Frequency:
+          - SBOM/SCA runs on:
+            - Push to main/develop branches
+            - Dependency file changes
+            - Manual trigger via workflow_dispatch
+          
+          ### Related Files:
+          - `.github/workflows/ci-sbom-sca.yml` - Workflow definition
+          - `scripts/generate_sca_summary.py` - Reporting script
+          - `policy/waivers.yml` - Vulnerability waiver policy
+          
+          ### Audit Trail:
+          Each artifact includes:
+          - Generation timestamp (UTC)
+          - Git commit SHA
+          - Workflow run ID
+          - Tool versions
+          
+          EOF
+          
+          echo "Generated EVIDENCE/README.md"
+
+      - name: Upload Evidence README
+        uses: actions/upload-artifact@v4
+        with:
+          name: evidence-readme
+          path: EVIDENCE/README.md
+          retention-days: 30

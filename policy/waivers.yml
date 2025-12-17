@@ -1,18 +1,38 @@
+version: "1.0"
+generated: "2025-11-18"
 policy:
   owner: "Security Guild"
   review_interval_days: 30
   escalation_contact: "security@example.com"
 
+  update_policy:
+    critical: "24 hours"
+    high: "7 days"
+    medium: "30 days"
+    low: "90 days"
+    unknown: "30 days"
+
 waivers:
-  - id: WAIVER-2025-001
+  - id: "WAIVER-2025-001"
     vulnerability_id: "GHSA-xxxx-xxxx"
     package: "example-lib"
     version: "1.2.3"
     introduced_in: "transitive dependency via fastapi"
+    severity: "medium"
     justification: >
       No exploit path in current threat model; monitored weekly.
-    mitigation_plan: "Re-test with patched release, replace dependency if no fix by 2026-01-15."
-    created_by: "sergey"
+      Dependency is deep in transitive chain and replacement would require
+      major refactoring of core components.
+    mitigation_plan: |
+      1. Weekly monitoring for patched release
+      2. Test with patched version when available
+      3. Replace dependency if no fix by 2026-01-15
+      4. Temporary network isolation of affected service
+    references:
+      - "CVE-2023-XXXXX"
+      - "Project issue #123"
+      - "Security audit report Q4/2025"
+    created_by: "Askar"
     created_at: "2025-11-18"
     review_due: "2026-01-15"
     status: "active"
