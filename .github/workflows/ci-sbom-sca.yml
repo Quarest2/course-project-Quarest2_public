@@ -180,29 +180,29 @@ jobs:
             done
           else
             # Альтернатива через Python если jq не установлен
-            python3 << 'EOF'
-            import json, os
-            
-            evidence_dir = os.environ.get('EVIDENCE_DIR', 'EVIDENCE/P09')
-            sbom_file = os.path.join(evidence_dir, 'sbom.json')
-            
-            with open(sbom_file, 'r') as f:
-                data = json.load(f)
-            
-            packages = data.get('artifacts', [])
-            print(f"- Packages: {len(packages)}")
-            
-            # Группировка по типам
-            from collections import Counter
-            type_counter = Counter()
-            for pkg in packages:
-                pkg_type = pkg.get('type', 'unknown')
-                type_counter[pkg_type] += 1
-            
-            print("\n## Package Types")
-            for pkg_type, count in sorted(type_counter.items()):
-                print(f"- {pkg_type}: {count}")
-            EOF >> "${EVIDENCE_DIR}/sbom_summary.md"
+            python3 <<EOF >> "${EVIDENCE_DIR}/sbom_summary.md"
+import json, os
+
+evidence_dir = os.environ.get('EVIDENCE_DIR', 'EVIDENCE/P09')
+sbom_file = os.path.join(evidence_dir, 'sbom.json')
+
+with open(sbom_file, 'r') as f:
+    data = json.load(f)
+
+packages = data.get('artifacts', [])
+print(f"- Packages: {len(packages)}")
+
+# Группировка по типам
+from collections import Counter
+type_counter = Counter()
+for pkg in packages:
+    pkg_type = pkg.get('type', 'unknown')
+    type_counter[pkg_type] += 1
+
+print("\n## Package Types")
+for pkg_type, count in sorted(type_counter.items()):
+    print(f"- {pkg_type}: {count}")
+EOF
           fi
 
       - name: Upload SBOM artifact
@@ -365,9 +365,9 @@ jobs:
           - **Compliance**: All Critical/High vulnerabilities addressed per policy
           
           **Evidence Files**:
-          - SBOM: \`EVIDENCE/P09/sbom.json\`
-          - SCA Report: \`EVIDENCE/P09/sca_report.json\`
-          - Executive Summary: \`EVIDENCE/P09/sca_summary.md\`
+          - SBOM: `EVIDENCE/P09/sbom.json`
+          - SCA Report: `EVIDENCE/P09/sca_report.json`
+          - Executive Summary: `EVIDENCE/P09/sca_summary.md`
           ```
           
           EOF
