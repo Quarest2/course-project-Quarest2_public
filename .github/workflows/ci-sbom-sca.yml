@@ -90,9 +90,9 @@ jobs:
               with open('policy/waivers.yml', 'r') as f:
                   data = yaml.safe_load(f)
               # Basic validation
-              if 'policy' not in data:
+              if 'policy' not in 
                   print('Warning: Missing policy section')
-              if 'waivers' in data:
+              if 'waivers' in 
                   print(f'✓ Found {len(data[\"waivers\"])} waiver(s)')
               print('✓ Waivers policy structure is valid')
           except Exception as e:
@@ -133,7 +133,7 @@ jobs:
               with open(input_file, 'r') as f:
                   data = json.load(f)
               
-              if 'metadata' not in data:
+              if 'metadata' not in 
                   data['metadata'] = {}
               
               data['metadata'].update({
@@ -181,28 +181,28 @@ jobs:
           else
             # Альтернатива через Python если jq не установлен
             python3 <<EOF >> "${EVIDENCE_DIR}/sbom_summary.md"
-import json, os
+            import json, os
 
-evidence_dir = os.environ.get('EVIDENCE_DIR', 'EVIDENCE/P09')
-sbom_file = os.path.join(evidence_dir, 'sbom.json')
+          evidence_dir = os.environ.get('EVIDENCE_DIR', 'EVIDENCE/P09')
+          sbom_file = os.path.join(evidence_dir, 'sbom.json')
 
-with open(sbom_file, 'r') as f:
-    data = json.load(f)
+          with open(sbom_file, 'r') as f:
+            data = json.load(f)
 
-packages = data.get('artifacts', [])
-print(f"- Packages: {len(packages)}")
+          packages = data.get('artifacts', [])
+          print(f"- Packages: {len(packages)}")
 
-# Группировка по типам
-from collections import Counter
-type_counter = Counter()
-for pkg in packages:
-    pkg_type = pkg.get('type', 'unknown')
-    type_counter[pkg_type] += 1
+          from collections import Counter
+          type_counter = Counter()
+          for pkg in packages:
+            pkg_type = pkg.get('type', 'unknown')
+            type_counter[pkg_type] += 1
 
-print("\n## Package Types")
-for pkg_type, count in sorted(type_counter.items()):
-    print(f"- {pkg_type}: {count}")
-EOF
+          print("")
+          print("## Package Types")
+          for pkg_type, count in sorted(type_counter.items()):
+            print(f"- {pkg_type}: {count}")
+          EOF
           fi
 
       - name: Upload SBOM artifact
