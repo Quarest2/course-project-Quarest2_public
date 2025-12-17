@@ -1,3 +1,5 @@
+name: Security - SBOM & SCA
+
 on:
   push:
     branches: [ main, develop ]
