@@ -133,8 +133,7 @@ jobs:
               with open(input_file, 'r') as f:
                   data = json.load(f)
               
-              if 'metadata' not in 
-                  data['metadata'] = {}
+              if 'metadata' not in data['metadata'] = {}
               
               data['metadata'].update({
                   'generated_at': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
