@@ -17,6 +17,7 @@ mypy==1.8.0
 # Code quality
 pre-commit==3.6.0
 safety==2.3.5  # security scan
+PyYAML>=6.0
 
 # Documentation (опционально)
 mkdocs==1.5.3
