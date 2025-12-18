@@ -1,0 +1,50 @@
+title = "Gitleaks configuration for course project"
+
+[general]
+regex-size-limit = 10
+max-target-megabytes = 1
+
+[[rules]]
+description = "Generic API Key"
+id = "generic-api-key"
+regex = '''(?i)(?:key|api|token|secret|password)[=:\s]*["']?([a-z0-9]{32,})["']?'''
+keywords = ["key", "api", "token", "secret", "password"]
+
+[[rules]]
+description = "GitHub Token"
+id = "github-token"
+regex = '''(ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{36}'''
+
+[[rules]]
+description = "AWS Access Key"
+id = "aws-access-key"
+regex = '''AKIA[0-9A-Z]{16}'''
+
+[[rules]]
+description = "Google API Key"
+id = "google-api-key"
+regex = '''AIza[0-9A-Za-z\\-_]{35}'''
+
+[allowlist]
+description = "Allowlist for test files and documentation"
+
+paths = [
+  ".*test.*",
+  ".*example.*",
+  ".*sample.*",
+  ".*config.*example.*",
+  ".*readme.*",
+  ".*docs?.*",
+  "EVIDENCE/.*",
+  ".*__pycache__.*"
+]
+
+commits = []
+
+regexes = [
+  "#.*example.*key.*",
+  "//.*test.*token.*",
+  "/\\*.*sample.*secret.*\\*/",
+  "password.*=.*['\"]test123['\"]",
+  "SECRET_KEY.*=.*['\"].*django.*['\"]"
+]
