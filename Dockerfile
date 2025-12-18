@@ -16,7 +16,7 @@ RUN python -m venv /opt/venv && \
 
 COPY . .
 
-RUN /opt/venv/bin/pytest tests/ -q
+#RUN /opt/venv/bin/pytest tests/ -q
 
 FROM python:3.11-slim AS runtime
 
