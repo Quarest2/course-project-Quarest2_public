@@ -1,0 +1,203 @@
+name: Security - DAST (ZAP)
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - "app/**"
+      - "requirements*.txt"
+      - "pyproject.toml"
+      - "Dockerfile"
+      - ".github/workflows/ci-p11-dast.yml"
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: 'Target URL for ZAP scan'
+        required: false
+        default: 'http://localhost:8080'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dast-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  EVIDENCE_DIR: EVIDENCE/P11
+  APP_PORT: 8080
+
+jobs:
+  dast:
+    name: Run DAST (OWASP ZAP)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install fastapi uvicorn
+
+      - name: Create evidence directory
+        run: mkdir -p ${{ env.EVIDENCE_DIR }}
+
+      - name: Start application
+        id: start-app
+        run: |
+          echo "Starting FastAPI application..."
+          python -m uvicorn app.main:app --host 0.0.0.0 --port ${{ env.APP_PORT }} &
+          APP_PID=$!
+          echo "APP_PID=$APP_PID" >> $GITHUB_OUTPUT
+          
+          echo "Waiting for app to start (checking /health endpoint)..."
+          for i in {1..30}; do
+            if curl -s -f http://localhost:${{ env.APP_PORT }}/health > /dev/null 2>&1; then
+              echo "✅ Application is up and running"
+              exit 0
+            fi
+            echo "Attempt $i/30: Waiting for app..."
+            sleep 2
+          done
+          echo "❌ Application failed to start"
+          exit 1
+
+      - name: Run OWASP ZAP baseline scan
+        run: |
+          echo "Starting ZAP baseline scan..."
+          echo "Target: http://host.docker.internal:${{ env.APP_PORT }}"
+          
+
+          cat > ${{ env.EVIDENCE_DIR }}/zap_baseline.conf << 'EOF'
+
+          -config replacer.full_list\\(0\\).description=course
+          -config replacer.full_list\\(0\\).enabled=true
+          -config replacer.full_list\\(0\\).matchtype=REQ_HEADER
+          -config replacer.full_list\\(0\\).matchstr=User-Agent
+          -config replacer.full_list\\(0\\).regex=false
+          -config replacer.full_list\\(0\\).replacement=ZAP
+          -config scanner.attackOnStart=true
+          -config scanner.delayInMs=100
+          -config view.mode=attack
+          EOF
+          
+          docker run --rm \
+            -v ${{ github.workspace }}/${{ env.EVIDENCE_DIR }}:/zap/wrk \
+            --add-host=host.docker.internal:host-gateway \
+            owasp/zap2docker-stable:latest \
+            zap-baseline.py \
+            -t http://host.docker.internal:${{ env.APP_PORT }} \
+            -r zap_baseline.html \
+            -J zap_baseline.json \
+            -c /zap/wrk/zap_baseline.conf \
+            -a \
+            -I || true
+
+      - name: Stop application
+        if: always()
+        run: |
+          echo "Stopping application..."
+          pkill -f "uvicorn.*${{ env.APP_PORT }}" || true
+          sleep 2
+
+      - name: Generate DAST summary
+        run: |
+          python3 << 'EOF'
+          import json, os, sys
+          
+          evidence_dir = os.environ.get('EVIDENCE_DIR', 'EVIDENCE/P11')
+          json_file = os.path.join(evidence_dir, 'zap_baseline.json')
+          summary_file = os.path.join(evidence_dir, 'dast_summary.md')
+          
+          try:
+              with open(json_file, 'r') as f:
+                  data = json.load(f)
+              
+              if isinstance(data, list) and len(data) > 0:
+                  site = data[0]
+              else:
+                  site = data
+              
+              alerts = site.get('alerts', [])
+              alert_counts = {'High': 0, 'Medium': 0, 'Low': 0, 'Informational': 0}
+              
+              for alert in alerts:
+                  risk = alert.get('risk', 'Informational')
+                  if risk in alert_counts:
+                      alert_counts[risk] += 1
+              
+              total_alerts = sum(alert_counts.values())
+              
+              with open(summary_file, 'w') as f:
+                  f.write("# DAST Security Summary (P11)\n\n")
+                  f.write(f"**Target**: http://localhost:{os.environ.get('APP_PORT', '8080')}\n")
+                  f.write(f"**Application**: Feature Votes API\n")
+                  f.write(f"**Total alerts**: {total_alerts}\n\n")
+                  
+                  f.write("## Alert Distribution\n")
+                  for risk in ['High', 'Medium', 'Low', 'Informational']:
+                      count = alert_counts.get(risk, 0)
+                      if count > 0:
+                          f.write(f"- **{risk}**: {count}\n")
+                  
+                  if alerts:
+                      f.write("\n## Key Findings\n")
+                      important_alerts = [a for a in alerts if a.get('risk') in ['High', 'Medium']]
+                      
+                      if important_alerts:
+                          for alert in important_alerts[:3]: 
+                              f.write(f"### {alert.get('alert', 'Unknown')} ({alert.get('risk')})\n")
+                              f.write(f"- **Description**: {alert.get('desc', '')[:200]}\n")
+                              f.write(f"- **URL**: {alert.get('url', 'N/A')}\n")
+                              f.write(f"- **Solution**: {alert.get('solution', 'N/A')[:200]}\n\n")
+                      else:
+                          f.write("✅ No High/Medium severity alerts found\n")
+                  
+                  f.write("\n## Risk Assessment\n")
+                  if alert_counts.get('High', 0) > 0:
+                      f.write("🚨 **High risk**: Immediate action required for High severity issues\n")
+                  elif alert_counts.get('Medium', 0) > 0:
+                      f.write("⚠️ **Medium risk**: Review Medium severity issues in next sprint\n")
+                  else:
+                      f.write("✅ **Low risk**: No critical security issues detected\n")
+                  
+                  f.write("\n---\n")
+                  f.write("*Generated by OWASP ZAP Baseline Scan*\n")
+              
+              print(f"DAST summary written to {summary_file}")
+              print(f"Alerts found: {total_alerts}")
+              
+          except Exception as e:
+              print(f"Error generating summary: {e}")
+              with open(summary_file, 'w') as f:
+                  f.write("# DAST Summary\n\nError processing ZAP report.\n")
+          EOF
+
+      - name: Upload DAST artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dast-${{ github.run_id }}
+          path: |
+            ${{ env.EVIDENCE_DIR }}/zap_baseline.html
+            ${{ env.EVIDENCE_DIR }}/zap_baseline.json
+            ${{ env.EVIDENCE_DIR }}/dast_summary.md
+          retention-days: 30
+
+      - name: Publish summary to job log
+        run: |
+          echo "## 📋 DAST Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f "${{ env.EVIDENCE_DIR }}/dast_summary.md" ]; then
+            head -20 "${{ env.EVIDENCE_DIR }}/dast_summary.md" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No DAST summary generated" >> $GITHUB_STEP_SUMMARY
+          fi
